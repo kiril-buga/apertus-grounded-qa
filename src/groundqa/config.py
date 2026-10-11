@@ -57,8 +57,11 @@ def read_jsonl(path: str | Path) -> list[dict]:
 
 
 def write_jsonl(path: str | Path, rows) -> None:
+    """Write atomically, so a run killed mid-write never leaves a file that looks complete."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w") as f:
+    tmp = path.with_name(path.name + ".tmp")
+    with open(tmp, "w") as f:
         for row in rows:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    tmp.replace(path)

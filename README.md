@@ -107,7 +107,21 @@ pytest                            # unit tests, CPU, seconds
 python scripts/smoke_test.py      # full pipeline on a tiny random model, CPU, no downloads, ~2 min
 ```
 
-Dev loop on Apertus 1.5B (one 24 GB GPU):
+### Colab or Kaggle
+
+[`notebooks/run_pipeline.ipynb`](notebooks/run_pipeline.ipynb) runs every step on Google Colab or Kaggle. It
+detects the platform and GPU and picks the model: Apertus 8B on a 40 GB+ GPU (Colab Pro A100), otherwise Apertus
+1.5B (free T4 on Colab or Kaggle). Outputs go to Google Drive or `/kaggle/working`. Finished steps are skipped and
+training resumes from its last checkpoint, so after a disconnect you just run it again. Setup (GPU runtime, a
+`GITHUB_TOKEN` secret for the private repo, an optional `HF_TOKEN`) is described at the top of the notebook.
+
+To open it in Colab, use File → Open notebook → GitHub (with private repos enabled), or
+[this link](https://colab.research.google.com/github/kiril-buga/apertus-grounded-qa/blob/main/notebooks/run_pipeline.ipynb).
+On Kaggle, download the `.ipynb` from GitHub and use File → Import Notebook.
+
+### Command line
+
+Dev loop on Apertus 1.5B (one 16 GB+ GPU):
 
 ```bash
 bash scripts/run_all.sh configs/apertus1p5b_dev.yaml runs/dev
@@ -130,8 +144,9 @@ Each step can also be run on its own (`python -m groundqa.<step> --help`). Any c
 **Compute.** Swiss AI's [fine-tuning recipes](https://github.com/swiss-ai/apertus-finetuning-recipes) report that
 LoRA on the 8B model fits a single 40 GB GPU. With the default sizes (6,000 SFT examples, 2,000 preference prompts,
 600 test questions), I expect the full pipeline to take well under a day on one A100 or H100. I'll replace this
-estimate with measured times after the first run. For a 24 GB GPU, set `model.load_in_4bit=true` for SFT. DPO
-merges adapters and needs bf16.
+estimate with measured times after the first run. `model.dtype: auto` uses bf16 on Ampere or newer GPUs and fp16 on
+T4/P100. For 8B on a 16–24 GB GPU, `model.load_in_4bit=true` covers SFT and evaluation, but not DPO, which merges
+adapters.
 
 ## Using your own testbed
 
@@ -182,6 +197,7 @@ src/groundqa/
   report.py         Markdown comparison table
   annotate.py       human-label export and agreement
   judge.py          optional LLM judge for comparison
+notebooks/          run_pipeline.ipynb (Colab / Kaggle)
 scripts/            run_all.sh, smoke_test.py
 tests/              unit tests
 ```

@@ -1,5 +1,7 @@
 """Model, tokenizer and dataset helpers shared by the training and generation scripts."""
 
+from pathlib import Path
+
 import torch
 from peft import LoraConfig, PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -14,24 +16,51 @@ def load_tokenizer(cfg: dict):
     return tok
 
 
+def _gpu_has_bf16() -> bool:
+    # T4 and P100 (Colab free, Kaggle) only emulate bf16, slowly; native support starts with Ampere.
+    return torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8
+
+
+def resolve_dtype(cfg: dict) -> torch.dtype:
+    """`model.dtype: auto` means bf16 on Ampere or newer, fp16 on older GPUs, fp32 on CPU."""
+    name = cfg["model"].get("dtype", "auto")
+    if name != "auto":
+        return getattr(torch, name)
+    if not torch.cuda.is_available():
+        return torch.float32
+    return torch.bfloat16 if _gpu_has_bf16() else torch.float16
+
+
+def precision_flags(cfg: dict) -> dict:
+    """Mixed-precision flags for the HF Trainer that match the model dtype."""
+    if not torch.cuda.is_available():
+        return {"bf16": False, "fp16": False}
+    dtype = resolve_dtype(cfg)
+    if dtype == torch.float32:  # fp32 weights: autocast to whatever the GPU does fast
+        return {"bf16": _gpu_has_bf16(), "fp16": not _gpu_has_bf16()}
+    return {"bf16": dtype == torch.bfloat16, "fp16": dtype == torch.float16}
+
+
 def load_model(cfg: dict, adapters: list[str] | None = None, for_training: bool = False):
     """Load the base model and merge any adapters into it, in order.
 
     Merging keeps inference simple and lets DPO train a fresh LoRA on top of the
-    SFT model, with the merged SFT weights as the frozen reference.
+    SFT model, with the merged SFT weights as the frozen reference. A 4-bit model
+    can't be merged into, so it takes one adapter, unmerged, for inference only.
     """
     m = cfg["model"]
-    kwargs = {"dtype": getattr(torch, m.get("dtype", "bfloat16"))}
+    dtype = resolve_dtype(cfg)
+    kwargs = {"dtype": dtype}
     if m.get("attn_implementation"):
         kwargs["attn_implementation"] = m["attn_implementation"]
     if m.get("load_in_4bit"):
-        if adapters:
-            raise ValueError("merging adapters into a 4-bit model is not supported; set model.load_in_4bit=false")
+        if adapters and (for_training or len(adapters) > 1):
+            raise ValueError("DPO and stacked adapters need model.load_in_4bit=false (adapters are merged)")
         from transformers import BitsAndBytesConfig
         kwargs["quantization_config"] = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=torch.bfloat16,
+            bnb_4bit_compute_dtype=dtype if dtype != torch.float32 else torch.float16,
             bnb_4bit_use_double_quant=True,
         )
     if torch.cuda.is_available():
@@ -39,10 +68,19 @@ def load_model(cfg: dict, adapters: list[str] | None = None, for_training: bool 
 
     model = AutoModelForCausalLM.from_pretrained(m["name"], **kwargs)
     for path in adapters or []:
-        model = PeftModel.from_pretrained(model, path).merge_and_unload()
+        model = PeftModel.from_pretrained(model, path)
+        if not m.get("load_in_4bit"):
+            model = model.merge_and_unload()
     if for_training:
         model.config.use_cache = False
     return model
+
+
+def last_checkpoint(output_dir: str) -> str | None:
+    """Most recent `checkpoint-N` dir, so a run cut off by a notebook timeout resumes where it stopped."""
+    from transformers.trainer_utils import get_last_checkpoint
+
+    return get_last_checkpoint(output_dir) if Path(output_dir).is_dir() else None
 
 
 def lora_config(cfg: dict) -> LoraConfig:

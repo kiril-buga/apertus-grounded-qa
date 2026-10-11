@@ -82,6 +82,7 @@ def build_model(vocab_size: int, out_dir: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workdir", default=None)
+    parser.add_argument("--assets-only", action="store_true", help="Write model, data and config, then stop")
     args = parser.parse_args()
     work = Path(args.workdir or tempfile.mkdtemp(prefix="groundqa-smoke-"))
     if work.exists():
@@ -107,15 +108,18 @@ def main() -> None:
                        max_train=96, max_pref=16, max_val=8, max_test=24)
     cfg["lora"].update(r=16, alpha=32)
     cfg["sft"].update(output_dir=str(work / "runs/sft"), epochs=1, max_steps=150, lr=1e-2, batch_size=8, grad_accum=1,
-                      max_length=256, eval_steps=50, logging_steps=25, gradient_checkpointing=False, bf16=False)
+                      max_length=256, eval_steps=50, logging_steps=25, gradient_checkpointing=False)
     cfg["generate"].update(batch_size=8, max_new_tokens=16)
     cfg["verify"].update(backend="lexical", threshold=0.9)
     cfg["prefs"]["samples_per_prompt"] = 2
     cfg["dpo"].update(output_dir=str(work / "runs/dpo"), max_steps=2, batch_size=2, grad_accum=1,
                       max_length=256, eval_steps=1, logging_steps=1, eval_fraction=0.2,
-                      gradient_checkpointing=False, bf16=False)
+                      gradient_checkpointing=False)
     cfg_path = work / "smoke.yaml"
     cfg_path.write_text(yaml.safe_dump(cfg, sort_keys=False))
+    if args.assets_only:
+        print(f"wrote smoke assets; config: {cfg_path}")
+        return
 
     env = {**os.environ, "PYTHONPATH": str(REPO / "src"), "TOKENIZERS_PARALLELISM": "false"}
     subprocess.run(["bash", str(REPO / "scripts/run_all.sh"), str(cfg_path), str(work / "runs")],

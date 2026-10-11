@@ -16,7 +16,7 @@ from trl import DPOConfig, DPOTrainer
 
 from .config import base_parser, load_config, read_jsonl, seed_everything
 from .cpu_fallback import apply_if_no_cuda
-from .modeling import load_model, load_tokenizer, lora_config
+from .modeling import last_checkpoint, load_model, load_tokenizer, lora_config, precision_flags
 
 
 def main() -> None:
@@ -52,11 +52,13 @@ def main() -> None:
         gradient_accumulation_steps=d["grad_accum"],
         gradient_checkpointing=d.get("gradient_checkpointing", True),
         max_length=d["max_length"],
-        bf16=d.get("bf16", True),
+        **precision_flags(cfg),
         logging_steps=d.get("logging_steps", 10),
         eval_strategy="steps",
         eval_steps=d.get("eval_steps", 50),
-        save_strategy="no",
+        save_strategy="steps",
+        save_steps=d.get("eval_steps", 50),
+        save_total_limit=1,
         report_to=d.get("report_to", "none"),
         seed=seed,
     )
@@ -69,7 +71,10 @@ def main() -> None:
         processing_class=tok,
         peft_config=lora_config(cfg),
     )
-    trainer.train()
+    resume = last_checkpoint(d["output_dir"])
+    if resume:
+        print(f"resuming from {resume}")
+    trainer.train(resume_from_checkpoint=resume)
     trainer.save_model(d["output_dir"])
     (Path(d["output_dir"]) / "log_history.json").write_text(json.dumps(trainer.state.log_history, indent=2))
     print(f"saved DPO adapter to {d['output_dir']} (apply on top of {args.sft_adapter})")

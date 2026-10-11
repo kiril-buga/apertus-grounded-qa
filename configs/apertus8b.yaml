@@ -1,9 +1,9 @@
-# Main experiment: Apertus 8B Instruct, LoRA in bf16 on one 40-80 GB GPU.
+# Main experiment: Apertus 8B Instruct, LoRA in bf16 on one 40-80 GB GPU (A100/H100).
 model:
   name: swiss-ai/Apertus-8B-Instruct-2509
-  dtype: bfloat16
+  dtype: auto               # bf16 on A100/L4/H100, fp16 on T4/P100
   attn_implementation: sdpa
-  load_in_4bit: false        # true for QLoRA on a 24 GB GPU (SFT only; DPO merges adapters and needs bf16)
+  load_in_4bit: false        # true for QLoRA on a 16-24 GB GPU: SFT and eval work, DPO does not (it merges adapters)
   system_in_user: false      # true folds the system prompt into the user turn
   chat_template_kwargs: {}
 

@@ -1,8 +1,8 @@
 # Cheap dev loop: same pipeline on the 1.5B model and a smaller slice of data.
-# Fits one 24 GB GPU with bf16 support (L4, A10G, RTX 4090).
+# Fits one 16 GB GPU: T4 on Colab or Kaggle (fp16), or L4/A100 (bf16).
 model:
   name: swiss-ai/Apertus-v1.1-1.5B-Instruct
-  dtype: bfloat16
+  dtype: auto               # bf16 on A100/L4/H100, fp16 on T4/P100
   attn_implementation: sdpa
   load_in_4bit: false
   system_in_user: false

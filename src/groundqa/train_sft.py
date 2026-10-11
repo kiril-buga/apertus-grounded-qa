@@ -11,7 +11,7 @@ from trl import SFTConfig, SFTTrainer
 
 from .config import base_parser, load_config, read_jsonl, seed_everything
 from .cpu_fallback import apply_if_no_cuda
-from .modeling import load_model, load_tokenizer, lora_config, to_prompt_completion
+from .modeling import last_checkpoint, load_model, load_tokenizer, lora_config, precision_flags, to_prompt_completion
 
 
 def main() -> None:
@@ -42,7 +42,7 @@ def main() -> None:
         gradient_checkpointing=s.get("gradient_checkpointing", True),
         max_length=s["max_length"],
         completion_only_loss=True,
-        bf16=s.get("bf16", True),
+        **precision_flags(cfg),
         logging_steps=s.get("logging_steps", 10),
         eval_strategy="steps",
         eval_steps=s.get("eval_steps", 100),
@@ -63,7 +63,10 @@ def main() -> None:
         peft_config=lora_config(cfg),
     )
     trainer.model.print_trainable_parameters()
-    trainer.train()
+    resume = last_checkpoint(s["output_dir"])
+    if resume:
+        print(f"resuming from {resume}")
+    trainer.train(resume_from_checkpoint=resume)
     trainer.save_model(s["output_dir"])
     tok.save_pretrained(s["output_dir"])
 
