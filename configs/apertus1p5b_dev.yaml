@@ -1,0 +1,73 @@
+# Cheap dev loop: same pipeline on the 1.5B model and a smaller slice of data.
+# Fits one 24 GB GPU with bf16 support (L4, A10G, RTX 4090).
+model:
+  name: swiss-ai/Apertus-v1.1-1.5B-Instruct
+  dtype: bfloat16
+  attn_implementation: sdpa
+  load_in_4bit: false
+  system_in_user: false
+  chat_template_kwargs: {}
+
+data:
+  source: rag12k
+  path: null
+  dir: data/rag12k_dev
+  seed: 13
+  splits: {train: 0.65, pref: 0.15, val: 0.05, test: 0.15}
+  max_train: 1500
+  max_pref: 400
+  max_val: 100
+  max_test: 200
+  max_context_chars: 4000
+  unanswerable_fraction: 0.3
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: all-linear
+
+sft:
+  output_dir: runs/dev/sft
+  epochs: 2
+  lr: 2.0e-4
+  batch_size: 4
+  grad_accum: 4
+  max_length: 1536
+  warmup_ratio: 0.03
+  eval_steps: 50
+  logging_steps: 10
+  gradient_checkpointing: true
+  report_to: none
+
+generate:
+  batch_size: 16
+  max_new_tokens: 200
+
+verify:
+  backend: nli
+  nli_model: MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli
+  threshold: 0.5
+  chunk_words: 250
+  batch_size: 32
+
+prefs:
+  samples_per_prompt: 4
+  temperature: 0.9
+  min_gap: 0.5
+  over_refusal_reward: 0.3
+  gold_fallback: true
+
+dpo:
+  output_dir: runs/dev/dpo
+  beta: 0.1
+  lr: 1.0e-5
+  epochs: 1
+  batch_size: 2
+  grad_accum: 8
+  max_length: 1536
+  eval_fraction: 0.05
+  eval_steps: 25
+  logging_steps: 5
+  gradient_checkpointing: true
+  report_to: none

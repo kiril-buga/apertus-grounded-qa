@@ -1,0 +1,72 @@
+# Main experiment: Apertus 8B Instruct, LoRA in bf16 on one 40-80 GB GPU.
+model:
+  name: swiss-ai/Apertus-8B-Instruct-2509
+  dtype: bfloat16
+  attn_implementation: sdpa
+  load_in_4bit: false        # true for QLoRA on a 24 GB GPU (SFT only; DPO merges adapters and needs bf16)
+  system_in_user: false      # true folds the system prompt into the user turn
+  chat_template_kwargs: {}
+
+data:
+  source: rag12k             # rag12k | squad_v2 | jsonl
+  path: null                 # for source=jsonl: your own {question, context, answer} file
+  dir: data/rag12k
+  seed: 13
+  splits: {train: 0.65, pref: 0.15, val: 0.05, test: 0.15}   # by document; `pref` is held out from SFT for DPO sampling
+  max_train: 6000
+  max_pref: 2000
+  max_val: 300
+  max_test: 600
+  max_context_chars: 6000
+  unanswerable_fraction: 0.3 # swap in a lexically similar context from another document
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: all-linear
+
+sft:
+  output_dir: runs/sft
+  epochs: 2
+  lr: 1.0e-4
+  batch_size: 2
+  grad_accum: 8
+  max_length: 2048
+  warmup_ratio: 0.03
+  eval_steps: 100
+  logging_steps: 10
+  gradient_checkpointing: true
+  report_to: none            # or wandb
+
+generate:
+  batch_size: 16
+  max_new_tokens: 256
+
+verify:
+  backend: nli
+  nli_model: MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli
+  threshold: 0.5             # re-check against human labels with groundqa.annotate
+  chunk_words: 250
+  batch_size: 32
+
+prefs:
+  samples_per_prompt: 4
+  temperature: 0.9
+  min_gap: 0.5
+  over_refusal_reward: 0.3
+  gold_fallback: true
+
+dpo:
+  output_dir: runs/dpo
+  beta: 0.1
+  lr: 5.0e-6
+  epochs: 1
+  batch_size: 1
+  grad_accum: 16
+  max_length: 2048
+  eval_fraction: 0.05
+  eval_steps: 50
+  logging_steps: 10
+  gradient_checkpointing: true
+  report_to: none

@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "groundqa"
+version = "0.1.0"
+description = "LoRA SFT + DPO of Apertus for grounded answers and abstention, evaluated with claim-level verification"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.4",
+    "transformers>=4.56",   # Apertus support
+    "peft>=0.17",
+    "trl>=1.0",
+    "datasets>=3.0",
+    "accelerate>=1.0",
+    "pyyaml",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+qlora = ["bitsandbytes>=0.45"]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
