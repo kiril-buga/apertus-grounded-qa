@@ -41,4 +41,5 @@
 | CUDA OOM in DPO | `dpo.batch_size: 1` (default) and higher `grad_accum`; lower `dpo.max_length` |
 | Base model never "abstains" | The detector misses its phrasing; see Saturday step 1 |
 | Very few DPO pairs | Raise `prefs.samples_per_prompt` or temperature, or lower `prefs.min_gap` |
+| `ImportError: Found an incompatible version of torchao` | An old preinstalled torchao (Kaggle); `pip uninstall -y torchao`. The notebook does this for you |
 | DPO raises over-refusal | Lower `prefs.over_refusal_reward` so refusals rank lower, or raise `dpo.beta` to stay closer to SFT |
