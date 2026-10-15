@@ -19,27 +19,45 @@ from .modeling import chat_prompt, load_model, load_tokenizer
 
 
 @torch.inference_mode()
+def _generate_batch(model, tok, batch: list[str], max_new_tokens: int, num_samples: int,
+                    temperature: float) -> list[list[str]]:
+    sample = temperature > 0
+    enc = tok(batch, return_tensors="pt", padding=True, add_special_tokens=False).to(model.device)
+    gen = model.generate(
+        **enc,
+        max_new_tokens=max_new_tokens,
+        do_sample=sample,
+        temperature=temperature if sample else None,
+        top_p=0.95 if sample else None,
+        top_k=None,
+        num_return_sequences=num_samples,
+        pad_token_id=tok.pad_token_id,
+    )
+    texts = tok.batch_decode(gen[:, enc["input_ids"].shape[1]:], skip_special_tokens=True)
+    return [[t.strip() for t in texts[i * num_samples:(i + 1) * num_samples]] for i in range(len(batch))]
+
+
 def generate(model, tok, prompts: list[str], max_new_tokens: int, num_samples: int = 1,
              temperature: float = 0.0, batch_size: int = 8) -> list[list[str]]:
+    """`batch_size` counts sequences, so k samples per prompt means batch_size // k prompts per batch.
+    On out-of-memory the batch is halved and retried, down to one prompt."""
     tok.padding_side = "left"
-    sample = temperature > 0
-    outputs = []
-    for start in tqdm(range(0, len(prompts), batch_size), desc="generate"):
-        batch = prompts[start:start + batch_size]
-        enc = tok(batch, return_tensors="pt", padding=True, add_special_tokens=False).to(model.device)
-        gen = model.generate(
-            **enc,
-            max_new_tokens=max_new_tokens,
-            do_sample=sample,
-            temperature=temperature if sample else None,
-            top_p=0.95 if sample else None,
-            top_k=None,
-            num_return_sequences=num_samples,
-            pad_token_id=tok.pad_token_id,
-        )
-        texts = tok.batch_decode(gen[:, enc["input_ids"].shape[1]:], skip_special_tokens=True)
-        for i in range(len(batch)):
-            outputs.append([t.strip() for t in texts[i * num_samples:(i + 1) * num_samples]])
+    step = max(1, batch_size // num_samples)
+    outputs, start = [], 0
+    with tqdm(total=len(prompts), desc="generate") as bar:
+        while start < len(prompts):
+            batch = prompts[start:start + step]
+            try:
+                outputs.extend(_generate_batch(model, tok, batch, max_new_tokens, num_samples, temperature))
+            except torch.cuda.OutOfMemoryError:
+                if step == 1:
+                    raise
+                torch.cuda.empty_cache()
+                step = max(1, step // 2)
+                tqdm.write(f"out of GPU memory; retrying with {step} prompt(s) per batch")
+                continue
+            start += len(batch)
+            bar.update(len(batch))
     return outputs
 
 
