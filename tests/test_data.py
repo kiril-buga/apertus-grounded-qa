@@ -69,3 +69,14 @@ def test_prepare_splits_keeps_negatives_within_split():
     assert not contexts["train"] & contexts["test"]
     assert not contexts["pref"] & contexts["test"]
     assert any(not r["answerable"] for r in splits["test"])
+
+
+def test_raising_max_pref_leaves_other_splits_unchanged():
+    # A second DPO run grows the pref split; the SFT model and test results must stay comparable.
+    base = {"splits": {"train": 0.5, "pref": 0.3, "val": 0.1, "test": 0.1}, "seed": 5,
+            "unanswerable_fraction": 0.3, "max_train": 40, "max_val": 6, "max_test": 10}
+    small = prepare_splits({"data": {**base, "max_pref": 5}}, examples=_examples(n_groups=60))
+    large = prepare_splits({"data": {**base, "max_pref": 50}}, examples=_examples(n_groups=60))
+    for name in ["train", "val", "test"]:
+        assert small[name] == large[name], name
+    assert len(large["pref"]) > len(small["pref"])

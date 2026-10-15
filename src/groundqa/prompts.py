@@ -21,6 +21,11 @@ _ABSTAIN_PATTERNS = [
     r"not (?:mentioned|stated|specified|provided|included) in the (?:context|text|passage|document)",
     r"no information (?:about|on|regarding)",
     r"there is no (?:information|mention)",
+    # First-person refusals, e.g. "I can't provide the specific lineup without more context."
+    # Requiring "I" keeps factual sentences like "the pump cannot provide power" out.
+    r"\bI(?: am|'m)? (?:can't|cannot|can not|unable to|not able to) (?:provide|determine|find|give|say|tell|identify|confirm|answer)",
+    r"\bI (?:do not|don't) (?:have|know)\b",
+    r"\b(?:not enough|insufficient) (?:information|context|details)\b",
 ]
 _ABSTAIN_RE = re.compile("|".join(_ABSTAIN_PATTERNS), re.IGNORECASE)
 

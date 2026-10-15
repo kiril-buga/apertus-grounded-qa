@@ -112,7 +112,8 @@ python scripts/smoke_test.py      # full pipeline on a tiny random model, CPU, n
 [`notebooks/run_pipeline.ipynb`](notebooks/run_pipeline.ipynb) runs every step on Google Colab or Kaggle. It
 detects the platform and GPU and picks the model: Apertus 8B on a 40 GB+ GPU (Colab Pro A100), otherwise Apertus
 1.5B (free T4 on Colab or Kaggle). Outputs go to Google Drive or `/kaggle/working`. Finished steps are skipped and
-training resumes from its last checkpoint, so after a disconnect you just run it again. Setup (GPU runtime, a
+training resumes from its last checkpoint, so after a disconnect you just run it again. To redo later
+stages with new settings, set `REDO_FROM = "dpo"` or `"eval"`; earlier outputs are moved aside, not deleted. Setup (GPU runtime, a
 `GITHUB_TOKEN` secret for the private repo, an optional `HF_TOKEN`) is described at the top of the notebook.
 
 To open it in Colab, use File → Open notebook → GitHub (with private repos enabled), or

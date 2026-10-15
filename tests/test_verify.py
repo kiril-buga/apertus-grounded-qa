@@ -10,6 +10,19 @@ def test_abstention_detector():
     assert not is_abstention("The pump runs at 3000 rpm.")
 
 
+def test_abstention_detector_first_person_refusals():
+    # Seen from the base model: a hedge followed by a refusal.
+    assert is_abstention("The concert featured many artists. However, I can't provide the specific lineup "
+                         "without more context.")
+    assert is_abstention("I'm unable to determine the release date from this text.")
+    assert is_abstention("I don't have enough details to answer.")
+    assert is_abstention("There is not enough information to say who won.")
+    # Factual sentences with similar words are not refusals.
+    assert not is_abstention("The backup pump cannot provide full pressure during startup.")
+    assert not is_abstention("Users can't find the setting without the admin role.")
+    assert not is_abstention("I/O throughput is limited; the controller can't determine the order of writes.")
+
+
 def test_split_claims_handles_bullets_and_short_fragments():
     text = "The pump runs at 3000 rpm. It uses a 5 kW motor.\n- Cooling is passive.\nYes."
     assert split_claims(text) == [

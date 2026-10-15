@@ -15,7 +15,7 @@ data:
   seed: 13
   splits: {train: 0.65, pref: 0.15, val: 0.05, test: 0.15}
   max_train: 1500
-  max_pref: 400
+  max_pref: 1200             # all pref-split docs (~3x the first run); DPO had too few pairs at 400
   max_val: 100
   max_test: 200
   max_context_chars: 4000
@@ -61,10 +61,10 @@ prefs:
 dpo:
   output_dir: runs/dev/dpo
   beta: 0.1
-  lr: 1.0e-5
-  epochs: 1
+  lr: 2.0e-5                 # LoRA DPO; at 1e-5 x 13 steps the first run barely moved (loss 0.692)
+  epochs: 3
   batch_size: 2
-  grad_accum: 8
+  grad_accum: 4
   max_length: 1536
   eval_fraction: 0.05
   eval_steps: 25
