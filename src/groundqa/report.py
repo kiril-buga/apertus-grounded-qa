@@ -22,6 +22,7 @@ LABELS = {
     "claim_support": "Claims supported by context ↑",
     "fully_supported": "Answers with every claim supported ↑",
     "ref_consistent": "Consistent with reference ↑",
+    "coverage": "Covers the reference ↑",
     "token_f1": "Token F1 vs reference ↑",
     "avg_claims": "Claims per answer",
 }

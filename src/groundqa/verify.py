@@ -125,12 +125,26 @@ def token_f1(prediction: str, reference: str) -> float:
 
 # --------------------------------------------------------------------------- verification
 
+def as_hypothesis(claim: str, question: str, short_claim_words: int = 6) -> str:
+    """A bare answer such as "Navpad Steel" is not a statement an NLI model can judge; pair it with its question."""
+    if len(claim.split()) < short_claim_words:
+        return f'The answer to the question "{question}" is: {claim}'
+    return claim
+
+
 def verify_rows(examples: dict[str, dict], preds: list[dict], scorer, threshold: float,
                 chunk_words: int = 250, short_ref_words: int = 5) -> list[dict]:
-    """Return one verified row per prediction. Scorer calls are batched across all rows."""
+    """Return one verified row per prediction. Scorer calls are batched across all rows.
+
+    For answerable questions that were answered, two reference checks run:
+      ref_consistent  every claim follows from the reference (precision)
+      coverage        share of the reference's sentences that follow from the answer (recall)
+    Precision alone rewards saying less; coverage is what stops that.
+    """
     rows, pairs, owners = [], [], []
     for pred in preds:
         ex = examples[pred["id"]]
+        q = ex["question"]
         text = pred["prediction"]
         abstained = is_abstention(text)
         claims = [] if abstained else split_claims(text)
@@ -143,11 +157,12 @@ def verify_rows(examples: dict[str, dict], preds: list[dict], scorer, threshold:
             "claims": [{"text": c, "p": 0.0} for c in claims],
             "token_f1": None,
             "ref_consistent": None,
+            "coverage": None,
         }
-        chunks = chunk_context(ex["context"], chunk_words)
-        for ci, claim in enumerate(claims):
-            for chunk in chunks:
-                pairs.append((chunk, claim))
+        hyps = [as_hypothesis(c, q) for c in claims]
+        for ci, hyp in enumerate(hyps):
+            for chunk in chunk_context(ex["context"], chunk_words):
+                pairs.append((chunk, hyp))
                 owners.append((len(rows), "claim", ci))
 
         if ex["answerable"] and not abstained:
@@ -155,20 +170,29 @@ def verify_rows(examples: dict[str, dict], preds: list[dict], scorer, threshold:
             row["token_f1"] = token_f1(text, ref)
             if len(ref.split()) <= short_ref_words:
                 # Short span answers (SQuAD-style): check the span appears in the answer.
-                row["ref_consistent"] = " ".join(_tokens(ref)) in " ".join(_tokens(text))
+                hit = " ".join(_tokens(ref)) in " ".join(_tokens(text))
+                row["ref_consistent"], row["coverage"] = hit, float(hit)
             else:
-                # Long answers: every claim must follow from the reference answer.
-                for ci, claim in enumerate(claims):
-                    pairs.append((ref, claim))
+                ref_premise = f"Question: {q}\nAnswer: {ref}"
+                for ci, hyp in enumerate(hyps):
+                    pairs.append((ref_premise, hyp))
                     owners.append((len(rows), "ref", ci))
                 row["_ref_p"] = [0.0] * len(claims)
+                ref_sents = split_sentences(ref) or [ref]
+                answer_premise = f"Question: {q}\nAnswer: {text}"
+                for si, sent in enumerate(ref_sents):
+                    pairs.append((answer_premise, sent))
+                    owners.append((len(rows), "cov", si))
+                row["_cov_p"] = [0.0] * len(ref_sents)
         rows.append(row)
 
-    for (ri, kind, ci), p in zip(owners, scorer.score(pairs)):
+    for (ri, kind, i), p in zip(owners, scorer.score(pairs)):
         if kind == "claim":
-            rows[ri]["claims"][ci]["p"] = max(rows[ri]["claims"][ci]["p"], p)
+            rows[ri]["claims"][i]["p"] = max(rows[ri]["claims"][i]["p"], p)
+        elif kind == "ref":
+            rows[ri]["_ref_p"][i] = p
         else:
-            rows[ri]["_ref_p"][ci] = p
+            rows[ri]["_cov_p"][i] = p
 
     for row in rows:
         for c in row["claims"]:
@@ -179,6 +203,9 @@ def verify_rows(examples: dict[str, dict], preds: list[dict], scorer, threshold:
         ref_p = row.pop("_ref_p", None)
         if ref_p is not None:
             row["ref_consistent"] = bool(ref_p) and all(p >= threshold for p in ref_p)
+        cov_p = row.pop("_cov_p", None)
+        if cov_p is not None:
+            row["coverage"] = round(sum(p >= threshold for p in cov_p) / len(cov_p), 4)
     return rows
 
 

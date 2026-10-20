@@ -18,7 +18,8 @@ from .verify import make_scorer, verify_rows
 
 
 def reward(row: dict, over_refusal_reward: float = 0.3) -> float:
-    """1.0 is ideal. Answering an unanswerable question scores 0; refusing an answerable one scores `over_refusal_reward`."""
+    """1.0 is ideal: every claim supported, consistent with the reference and covering all of it. Answering an
+    unanswerable question scores 0; refusing an answerable one scores `over_refusal_reward`."""
     if not row["answerable"]:
         return 1.0 if row["abstained"] else 0.0
     if row["abstained"]:
@@ -26,7 +27,11 @@ def reward(row: dict, over_refusal_reward: float = 0.3) -> float:
     if row["n_claims"] == 0:
         return 0.0
     support = row["n_supported"] / row["n_claims"]
-    return support * (0.5 + 0.5 * bool(row["ref_consistent"]))
+    if row.get("coverage") is None:
+        return support * (0.5 + 0.5 * bool(row["ref_consistent"]))
+    # Without the coverage term the best-scoring answer is the shortest true one ("He was moved to the third line.").
+    # Coverage carries most of the weight so that a terse-vs-complete pair clears prefs.min_gap (0.5) and is kept.
+    return support * (0.2 * bool(row["ref_consistent"]) + 0.8 * row["coverage"])
 
 
 def build_pairs(examples: dict[str, dict], verified: list[dict], min_gap: float = 0.5,

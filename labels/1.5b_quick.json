@@ -1,0 +1,288 @@
+{
+  "model": "swiss-ai/Apertus-v1.1-1.5B-Instruct (dev config)",
+  "run": "Kaggle notebook version 6: SFT and DPO answers on the test split, 40 answered rows, shuffled",
+  "question_asked": "Does the answer actually answer the question? y = contains the key fact; n = restates the question, misses the key fact, or contradicts the reference.",
+  "labelling": "Draft labels proposed by an LLM assistant, reviewed and accepted by the author.",
+  "items": [
+    {
+      "row": 0,
+      "question": "What is the expected timeline for the end of the ongoing chip scarcity according to Intel CEO Pat Gelsinger?",
+      "reference": "Intel CEO Pat Gelsinger expects the ongoing chip scarcity to end in 2023 at the earliest.",
+      "answer": "The expected timeline is until 2023.",
+      "answers_question": "y"
+    },
+    {
+      "row": 1,
+      "question": "What does the author believe will happen to his soul and spirit after physical death?",
+      "reference": "The author believes that if he dies a physical death, his body will be dead, but his soul and spirit will not die. His soul and spirit will be conscious and he will begin experiencing more reality than ever before, even without physical senses.",
+      "answer": "The author believes that his soul and spirit will not die after physical death and will be conscious. He will experience all dimensions of reality, including the past and future, and will be unbound from time. He also believes that he will get an upgraded physical body on the day of the Rapture.",
+      "answers_question": "y"
+    },
+    {
+      "row": 2,
+      "question": "Who scored twice in a three-minute span to give Scotch Plains a 2-0 lead in the first game of the Union County Tournament?",
+      "reference": "Katie Harper, an unheralded sophomore, scored twice in a three-minute span to give Scotch Plains a 2-0 lead.",
+      "answer": "Katie Harper scored twice in a three-minute span to give Scotch Plains a 2-0 lead in the first game of the Union County Tournament.",
+      "answers_question": "y"
+    },
+    {
+      "row": 3,
+      "question": "What is the medium used by the abstract artist Sweet Samson?",
+      "reference": "Sweet Samson uses Composites, Resins, Acrylic, and PU board as her medium.",
+      "answer": "The medium used by the abstract artist Sweet Samson is composites, resins, acrylics, and PU board.",
+      "answers_question": "y"
+    },
+    {
+      "row": 4,
+      "question": "Who is the author of \"Johnny Get Your Gun\"?",
+      "reference": "Dalton Trumbo.",
+      "answer": "Dalton Trumbo",
+      "answers_question": "y"
+    },
+    {
+      "row": 5,
+      "question": "What are the different programs under Artios Academy that Lori Lane oversees?",
+      "reference": "The programs under Artios Academy that Lori Lane oversees include Artios Academy for the Visual and Performing Arts, Artios Academy of Arts and History, Artios Preparatory, and Artios Conservatory.",
+      "answer": "The different programs under Artios Academy that Lori Lane oversees include Artios Academy for the Visual and Performing Arts, Artios Preparatory, and Artios Conservatory.",
+      "answers_question": "y"
+    },
+    {
+      "row": 6,
+      "question": "What types of oversized recliner chairs are mentioned in the context?",
+      "reference": "The context mentions oversized recliner chairs with covers, modern two tone bonded leather oversize chair, oversized power recliner chair, oversized leather recliner chair, and lane oversized chair.",
+      "answer": "Oversized recliner chairs.",
+      "answers_question": "n"
+    },
+    {
+      "row": 7,
+      "question": "What does the term \"grizzly\" refer to in the context of jackets?",
+      "reference": "The term \"grizzly\" refers to jackets with fur on the front.",
+      "answer": "The term \"grizzly\" refers to jackets with fur on the front.",
+      "answers_question": "y"
+    },
+    {
+      "row": 8,
+      "question": "Why was David Krecji moved to the third line in his team?",
+      "reference": "David Krecji was moved to the third line due to his inconsistency issue.",
+      "answer": "His role was changed.",
+      "answers_question": "n"
+    },
+    {
+      "row": 9,
+      "question": "When will the annual Kovalevskaya 2014 awards be presented?",
+      "reference": "The annual Kovalevskaya 2014 awards will be presented on March 7 in Hanoi.",
+      "answer": "On March 7.",
+      "answers_question": "y"
+    },
+    {
+      "row": 10,
+      "question": "What is the vision for the future of North Kingstown as discussed in the town council meeting?",
+      "reference": "The vision for the future of North Kingstown, as discussed in the town council meeting, includes focusing on economic development issues, the revitalization of the Post Road corridor, multi-level, mixed-use development, and the possible integration of big-box stores into development plans. The plan also includes the addition of sewer lines along the Post Road corridor.",
+      "answer": "The vision for the future of North Kingstown is to create a sense of place through mixed-use development, which would allow for a combination of residential, business, professional and retail. The plan also includes the integration of big-box stores into development plans.",
+      "answers_question": "y"
+    },
+    {
+      "row": 11,
+      "question": "What measures did General Motors take to help Opel return to profitability?",
+      "reference": "General Motors announced they would invest $5.5 billion through 2016 to fund the development of 23 new models and 13 new engines to aid in the overhaul of Opel’s aging lineup. They also planned to build an all-new vehicle for Opel’s main factory in Germany. GM withdrew Chevrolet from Europe to give Opel more breathing room and planned to shutter Opel’s plant in Bochum, Germany by the end of 2014.",
+      "answer": "General Motors invested $5.5 billion in Opel.",
+      "answers_question": "n"
+    },
+    {
+      "row": 12,
+      "question": "What could be the reason for the air bag light being on in a 2001 Lincoln LS?",
+      "reference": "The air bag light being on may indicate a bad clock spring.",
+      "answer": "The air bag light on a 2001 Lincoln LS could be due to a bad clock spring.",
+      "answers_question": "y"
+    },
+    {
+      "row": 13,
+      "question": "What is the purpose of the fundraising concert organized by Ortigas Malls?",
+      "reference": "The purpose of the fundraising concert organized by Ortigas Malls is to help get the entertainment industry back on its feet after the impact of the COVID-19 pandemic. The funds raised will be in support of the Independent Production Workers Group (IPWG), an organization that seeks to professionalize the production industry in the country and represents thousands of live events workers nationwide.",
+      "answer": "The purpose is to help get the entertainment industry back on its feet.",
+      "answers_question": "y"
+    },
+    {
+      "row": 14,
+      "question": "When will the removal for non-payment for the Summer 2015 term occur?",
+      "reference": "The removal for non-payment for the Summer 2015 term will occur at 6 p.m. on Thursday, May 21st.",
+      "answer": "The removal for non-payment for the Summer 2015 term will occur at 6 p.m. on Thursday, May 21st.",
+      "answers_question": "y"
+    },
+    {
+      "row": 15,
+      "question": "What is the topic of the general discussion forum?",
+      "reference": "The topic of the general discussion forum is \"Be an Avatar Donor Today!\".",
+      "answer": "Be an Avatar Donor Today!",
+      "answers_question": "y"
+    },
+    {
+      "row": 16,
+      "question": "What is the topic of the general discussion forum?",
+      "reference": "The topic of the general discussion forum is \"Be an Avatar Donor Today!\".",
+      "answer": "Be an Avatar Donor Today!",
+      "answers_question": "y"
+    },
+    {
+      "row": 17,
+      "question": "Who are the authors of the article \"Duck migration and past influenza A (H5N1) outbreak areas\"?",
+      "reference": "The authors of the article \"Duck migration and past influenza A (H5N1) outbreak areas\" are Nicolas Gaidet, Scott H. Newman, Ward Hagemeijer, Tim Dodman, Julien Cappelle, Saliha Hammoumi, Lorenzo De Simone, and John Y. Takekawa.",
+      "answer": "The authors are Nicolas Gaidet, Scott H. Newman, Ward Hagemeijer, Tim Dodman, Julien Cappelle, Saliha Hammoumi, Lorenzo De Simone, and John Y. Takekawa.",
+      "answers_question": "y"
+    },
+    {
+      "row": 18,
+      "question": "What is the primary source of solutes in the coastal sabkha of Abu Dhabi according to the ascending-brine model?",
+      "reference": "The primary source of solutes in the coastal sabkha of Abu Dhabi according to the ascending-brine model is ascending continental brines, which account for more than 95% of the solutes. Minor amounts are derived from rainfall and from groundwater entering from upgradient areas.",
+      "answer": "The primary source of solutes in the coastal sabkha of Abu Dhabi is from ascending continental brines.",
+      "answers_question": "y"
+    },
+    {
+      "row": 19,
+      "question": "What is the tool created by Duke University to identify apps that broadcast private data to distant locations?",
+      "reference": "The tool created by Duke University to identify apps that broadcast private data to distant locations is called TaintDroid.",
+      "answer": "TaintDroid",
+      "answers_question": "y"
+    },
+    {
+      "row": 20,
+      "question": "How many extra troops did France offer to the United Nations for the international peace force in Lebanon?",
+      "reference": "France offered 1,600 extra troops to the United Nations for the international peace force in Lebanon.",
+      "answer": "France offered 1,600 extra troops to the United Nations for the international peace force in Lebanon.",
+      "answers_question": "y"
+    },
+    {
+      "row": 21,
+      "question": "What was the legal age of consent in Alabama in 2001?",
+      "reference": "The legal age of consent in Alabama in 2001 was 14.",
+      "answer": "The legal age of consent in Alabama in 2001 was 14.",
+      "answers_question": "y"
+    },
+    {
+      "row": 22,
+      "question": "What was John Perkins' role as an Economic Hit Man?",
+      "reference": "John Perkins' role as an Economic Hit Man was to help sell massive construction and engineering projects to nations holding resources that the U.S. was interested in developing. The World Bank and International Monetary Fund would fund these projects, with contracts for engineering and construction going to American companies. The projects were intentionally over-engineered to such an extent that the country would likely default on loans, at which point, the U.S. would negotiate an exchange of resources, land, access for military installations, etc.",
+      "answer": "He was an \"EHM\" for the U.S. government.",
+      "answers_question": "n"
+    },
+    {
+      "row": 23,
+      "question": "Who was Catherine Cookson and what was her early life like?",
+      "reference": "Catherine Cookson was a best-selling author who was born into great poverty in 1906. Her family circumstances were not regarded as respectable and she was often looked on with disdain by some neighbours. An incident from her childhood where she was excluded from a neighbour's birthday party due to her family's status deeply wounded her.",
+      "answer": "Catherine Cookson was born in 1906.",
+      "answers_question": "n"
+    },
+    {
+      "row": 24,
+      "question": "What are the most popular surnames in the North Highlands of Scotland?",
+      "reference": "The most popular names in the North Highlands of Scotland are Mackay and Sutherland.",
+      "answer": "Mackay and Sutherland are the most popular names in the North Highlands.",
+      "answers_question": "y"
+    },
+    {
+      "row": 25,
+      "question": "What is the purpose of the fundraising concert organized by Ortigas Malls?",
+      "reference": "The purpose of the fundraising concert organized by Ortigas Malls is to help get the entertainment industry back on its feet after the impact of the COVID-19 pandemic. The funds raised will be in support of the Independent Production Workers Group (IPWG), an organization that seeks to professionalize the production industry in the country and represents thousands of live events workers nationwide.",
+      "answer": "The fundraising concert organized by Ortigas Malls is in partnership with Alcasid Total Entertainment and Artist Management (ATEAM) and aims to support the Independent Production Workers Group (IPWG), an organization that seeks to professionalize the production industry in the country and represents thousands of live events workers nationwide.",
+      "answers_question": "y"
+    },
+    {
+      "row": 26,
+      "question": "What are the largest industry segments that use Odoo eCommerce?",
+      "reference": "The largest industry segments that use Odoo eCommerce are Information Technology and Services (23%) and Computer Software (16%).",
+      "answer": "Information Technology and Services and Computer Software.",
+      "answers_question": "y"
+    },
+    {
+      "row": 27,
+      "question": "What is the key message in the series \"Daniel Tiger's Neighborhood\"?",
+      "reference": "One of the key messages in the series \"Daniel Tiger's Neighborhood\" is \"When a friend doesn’t want to play with you, you can find something else to do,\" and \"Try to solve the problem yourself and you’ll feel proud.\"",
+      "answer": "The key message in the series \"Daniel Tiger's Neighborhood\" is \"When a friend doesn’t want to play with you, you can find something else to do,\" and \"Try to solve the problem yourself and you’ll feel proud.\"",
+      "answers_question": "y"
+    },
+    {
+      "row": 28,
+      "question": "What are some of the features of the Voxeet web conferencing client?",
+      "reference": "Some of the features of the Voxeet web conferencing client include high quality sound, muting when two people try to talk at the same time, voice recognition, 3D sound, an easy to use desktop client with design similar to other VoIP clients, and the ability to build contact lists and organize them in groups.",
+      "answer": "The Voxeet web conferencing client offers high quality sound, if two people try to talk at the same time they will be muted, voice recognition so that everyone knows who is doing the speaking, 3D sound to arrange contacts in the conference and listen them in 3D, easy to use desktop client with design similar to other VoIP clients, build contact lists and organize them in groups, and the ability to conduct web conferences with contacts.",
+      "answers_question": "y"
+    },
+    {
+      "row": 29,
+      "question": "Who is the largest supplier of 301 Stainless Steel Coil in India?",
+      "reference": "Navpad Steel is the largest supplier of 301 Stainless Steel Coil in India.",
+      "answer": "Navpad Steel",
+      "answers_question": "y"
+    },
+    {
+      "row": 30,
+      "question": "What new features were introduced in version v0.2.0?",
+      "reference": "The new features introduced in version v0.2.0 were an edit menu for copy/paste and indent/unindent, and showing exception traceback for errors.",
+      "answer": "New features introduced in version v0.2.0 include an edit menu for copy/paste and indent/unindent, and a show exception traceback for errors.",
+      "answers_question": "y"
+    },
+    {
+      "row": 31,
+      "question": "Who last updated the topic discussed in the context?",
+      "reference": "The topic was last updated by admin 4 years, 7 months ago.",
+      "answer": "admin",
+      "answers_question": "y"
+    },
+    {
+      "row": 32,
+      "question": "What are some of the facilities offered by Walden Sukhumvit 39?",
+      "reference": "Walden Sukhumvit 39 offers various facilities such as Lobby, Garden, Gym, Communal Pool, Jacuzzi, Onzen, BBQ area, Playground, Sky Terrace, Social Corner, CCTV, Key card access, and 24 hrs security guards.",
+      "answer": "The project offers facilities such as Lobby, Garden, Gym, Communal Pool, Jacuzzi, Onzen, BBQ area, Playground, Sky Terrace, Social Corner, CCTV, Key card access, and 24 hrs security guards.",
+      "answers_question": "y"
+    },
+    {
+      "row": 33,
+      "question": "What coating is used on Carbide Ball End Mills to prevent soft materials from accumulating on the cutting edge?",
+      "reference": "A titanium-carbonitride (TiCN) coating is used on Carbide Ball End Mills to prevent soft materials from accumulating on the cutting edge.",
+      "answer": "TiCN",
+      "answers_question": "y"
+    },
+    {
+      "row": 34,
+      "question": "What discount is offered if you book a fall family session by August 15th?",
+      "reference": "You will receive $25 off the session fee.",
+      "answer": "If you book a fall family session by August 15th, you will receive $25 off the session fee.",
+      "answers_question": "y"
+    },
+    {
+      "row": 35,
+      "question": "What event did the \"Breaking Bad\" star announce as a lead-in to the Emmys awards?",
+      "reference": "The \"Breaking Bad\" star announced a scavenger hunt as a lead-in to the Emmys awards.",
+      "answer": "A scavenger hunt",
+      "answers_question": "y"
+    },
+    {
+      "row": 36,
+      "question": "Who was the Chairman of Runnymede & Weybridge Lib-Dems from 1995 until 1997?",
+      "reference": "Geoff Taylor was the Chairman of Runnymede & Weybridge Lib-Dems from 1995 until 1997.",
+      "answer": "Geoff Taylor was the Chairman of Runnymede & Weybridge Lib-Dems from 1995 until 1997.",
+      "answers_question": "y"
+    },
+    {
+      "row": 37,
+      "question": "What is the purpose of the International Residency virtual group established by Mr. Tolga Habali in 2012?",
+      "reference": "The International Residency virtual group was established by Mr. Tolga Habali to advise clients particularly from Middle East, Russia & CIS as well as Turkey on Citizenship and Residency by Investment programs.",
+      "answer": "The purpose of the group is to advise clients from Middle East, Russia & CIS and Turkey on Citizenship and Residency by Investment programs.",
+      "answers_question": "y"
+    },
+    {
+      "row": 38,
+      "question": "What does the console property of the WorkerGlobalScope interface provide access to?",
+      "reference": "The console property of the WorkerGlobalScope interface provides access to the browser console for the worker.",
+      "answer": "A browser console.",
+      "answers_question": "y"
+    },
+    {
+      "row": 39,
+      "question": "Who proposed a draft resolution for an annual cost of living increase for all elected officials in Riverhead town?",
+      "reference": "Riverhead Councilman John Dunleavy proposed a draft resolution for an annual cost of living increase for all elected officials in the town.",
+      "answer": "Riverhead Councilman John Dunleavy proposed a draft resolution for an annual cost of living increase for all elected officials in Riverhead town.",
+      "answers_question": "y"
+    }
+  ]
+}

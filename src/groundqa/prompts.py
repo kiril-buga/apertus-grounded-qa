@@ -26,6 +26,8 @@ _ABSTAIN_PATTERNS = [
     r"\bI(?: am|'m)? (?:can't|cannot|can not|unable to|not able to) (?:provide|determine|find|give|say|tell|identify|confirm|answer)",
     r"\bI (?:do not|don't) (?:have|know)\b",
     r"\b(?:not enough|insufficient) (?:information|context|details)\b",
+    # "The author doesn't mention anything about a plan for the quilt."
+    r"\b(?:author|article|page|post|writer) (?:does not|doesn't|did not|didn't) (?:mention|say|specify|state|discuss)",
 ]
 _ABSTAIN_RE = re.compile("|".join(_ABSTAIN_PATTERNS), re.IGNORECASE)
 

@@ -94,3 +94,20 @@ def test_agreement_from_annotation_rows():
     assert out["overall correct: verifier vs human"]["agree"] == 1.0
     assert out["claim supported: verifier vs human"]["n"] == 4
     assert out["overall correct: LLM judge vs human"]["agree"] == pytest.approx(1 / 3)
+
+
+def test_coverage_in_reward_and_headline():
+    from groundqa.metrics import is_grounded_correct
+    terse = {**_row("a", True, False, 1, 1, True), "coverage": 0.25}
+    full = {**_row("a", True, False, 3, 3, True), "coverage": 1.0}
+    assert reward(full) == 1.0 and reward(terse) < 0.5   # short-but-true no longer wins
+    assert not is_grounded_correct(terse) and is_grounded_correct(full)
+    legacy = _row("a", True, False, 1, 1, True)          # rows verified before coverage existed
+    assert reward(legacy) == 1.0 and is_grounded_correct(legacy)
+
+
+def test_coverage_metric_ignores_rows_without_it():
+    rows = [{**_row("1", True, False, 1, 1, True, 0.5), "coverage": 0.4},
+            {**_row("2", True, False, 1, 1, True, 0.5), "coverage": 0.8},
+            _row("3", True, False, 1, 1, True, 0.5)]
+    assert compute_metrics(rows)["coverage"] == pytest.approx(0.6)

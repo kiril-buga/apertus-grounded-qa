@@ -17,6 +17,7 @@
 
 import argparse
 import csv
+import json
 import random
 from collections import defaultdict
 from pathlib import Path
@@ -113,6 +114,47 @@ def agree(args) -> None:
         print(f"| {name} | {m['n']} | {acc} | {kappa} |")
 
 
+def quick(args) -> None:
+    """Re-verify saved, human-labelled question/answer pairs with the current verifier and report agreement."""
+    from .verify import make_scorer, verify_rows
+
+    cfg = load_config(args.config)
+    v = cfg["verify"]
+    saved = json.loads(Path(args.labels).read_text())
+    examples = {ex["id"]: ex for ex in read_jsonl(Path(cfg["data"]["dir"]) / f"{args.split}.jsonl")}
+    by_question = {}
+    for ex in examples.values():
+        if ex["answerable"]:
+            by_question.setdefault(ex["question"].strip(), ex["id"])
+
+    preds, human = [], []
+    for item in saved["items"]:
+        ex_id = by_question.get(item["question"].strip())
+        if ex_id:
+            preds.append({"id": ex_id, "prediction": item["answer"]})
+            human.append(item["answers_question"])
+    if not preds:
+        print(f"none of the {len(saved['items'])} labelled answers match a test question in {cfg['data']['dir']}; "
+              "the labels belong to a different dataset or split")
+        return
+    rows = verify_rows(examples, preds, make_scorer(cfg), v.get("threshold", 0.5), v.get("chunk_words", 250))
+    verifier = ["y" if is_grounded_correct(r) else "n" for r in rows]
+
+    n = len(rows)
+    agree = sum(a == b for a, b in zip(human, verifier))
+    print(f"{n} of {len(saved['items'])} labelled answers matched a test question")
+    print(f"agreement {100 * agree / n:.0f}%, Cohen's kappa {cohen_kappa(human, verifier):.2f}")
+    print(f"human says answers the question: {human.count('y')}/{n} | verifier says correct: {verifier.count('y')}/{n}")
+    print("\n| | verifier y | verifier n |\n|---|---|---|")
+    for h in "yn":
+        print(f"| human {h} | {sum(a == h and b == 'y' for a, b in zip(human, verifier))} "
+              f"| {sum(a == h and b == 'n' for a, b in zip(human, verifier))} |")
+    print("\ndisagreements:")
+    for item_h, r, vv in zip(human, rows, verifier):
+        if item_h != vv:
+            print(f"  human {item_h} / verifier {vv} (coverage {r.get('coverage')}): {r['prediction'][:90]}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -125,8 +167,12 @@ def main() -> None:
     e.add_argument("--out", default="results/annotation.csv")
     a = sub.add_parser("agree")
     a.add_argument("--csv", required=True)
+    q = sub.add_parser("quick", help="Re-verify saved human-labelled answers (labels/*.json) and report agreement")
+    q.add_argument("--config", required=True)
+    q.add_argument("--labels", required=True)
+    q.add_argument("--split", default="test")
     args = parser.parse_args()
-    export(args) if args.cmd == "export" else agree(args)
+    {"export": export, "agree": agree, "quick": quick}[args.cmd](args)
 
 
 if __name__ == "__main__":

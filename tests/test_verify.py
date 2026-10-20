@@ -70,3 +70,31 @@ def test_verify_rows_labels_claims_and_abstentions():
 
     assert rows["b"]["abstained"] and rows["b"]["n_claims"] == 0 and rows["b"]["ref_consistent"] is None
     assert rows["c"]["ref_consistent"] is True  # short reference: span containment
+
+
+def test_short_claims_are_judged_with_their_question():
+    from groundqa.verify import as_hypothesis
+    assert as_hypothesis("Navpad Steel", "Who is the largest supplier?") == \
+        'The answer to the question "Who is the largest supplier?" is: Navpad Steel'
+    long = "Navpad Steel is the largest supplier of steel coil in India."
+    assert as_hypothesis(long, "Who?") == long
+
+
+def test_coverage_penalises_answers_that_say_less():
+    ref = "GM invested 5.5 billion in new models. GM withdrew Chevrolet from Europe. GM closed the Bochum plant."
+    context = ref
+    examples = {"q": {"id": "q", "question": "What measures did GM take?", "context": context,
+                      "answer": ref, "answerable": True}}
+    preds = [
+        {"id": "q", "sample": 0, "prediction": "GM invested 5.5 billion in new models."},
+        {"id": "q", "sample": 1, "prediction": ref},
+    ]
+    short, full = verify_rows(examples, preds, LexicalScorer(), threshold=0.9)
+    assert short["n_supported"] == short["n_claims"] == 1 and short["ref_consistent"]  # precision is perfect...
+    assert short["coverage"] < 0.5                                                      # ...but most is missing
+    assert full["coverage"] == 1.0
+
+
+def test_author_doesnt_mention_is_an_abstention():
+    assert is_abstention("The author doesn't mention anything about a plan for the scrappy strippy UFO quilt.")
+    assert not is_abstention("The author mentions three plans for the quilt.")

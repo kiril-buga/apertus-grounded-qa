@@ -8,11 +8,17 @@ def _rate(num: int, den: int) -> float | None:
     return num / den if den else None
 
 
+COVERAGE_MIN = 0.5
+
+
 def is_grounded_correct(r: dict) -> bool:
-    """Headline per-example score: abstain when you should, otherwise answer fully supported and consistent with the reference."""
+    """Headline per-example score: abstain when you should; otherwise every claim supported, consistent with the
+    reference, and covering at least COVERAGE_MIN of it (rows verified before coverage existed skip that check)."""
     if not r["answerable"]:
         return r["abstained"]
-    return (not r["abstained"]) and r["n_claims"] > 0 and r["n_supported"] == r["n_claims"] and bool(r["ref_consistent"])
+    covered = r.get("coverage") is None or r["coverage"] >= COVERAGE_MIN
+    return ((not r["abstained"]) and r["n_claims"] > 0 and r["n_supported"] == r["n_claims"]
+            and bool(r["ref_consistent"]) and covered)
 
 
 def compute_metrics(rows: list[dict]) -> dict[str, float | None]:
@@ -42,6 +48,8 @@ def compute_metrics(rows: list[dict]) -> dict[str, float | None]:
         "claim_support": _rate(sum(r["n_supported"] for r in answered), n_claims),
         "fully_supported": _rate(sum(r["n_supported"] == r["n_claims"] for r in with_claims), len(with_claims)),
         "ref_consistent": _rate(sum(bool(r["ref_consistent"]) for r in ans_answered), len(ans_answered)),
+        "coverage": _rate(sum(r["coverage"] for r in ans_answered if r.get("coverage") is not None),
+                          sum(r.get("coverage") is not None for r in ans_answered)),
         "token_f1": _rate(sum(r["token_f1"] for r in ans_answered), len(ans_answered)),
         "avg_claims": _rate(n_claims, len(answered)),
     }
