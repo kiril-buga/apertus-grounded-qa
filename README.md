@@ -6,7 +6,7 @@ Training runs in two stages: supervised fine-tuning (SFT), then DPO on preferenc
 verifier. The evaluation checks every claim in an answer against its context, and the automatic metrics are
 validated against human labels before I trust them.
 
-> **Status:** results so far are on **Apertus 1.5B** (Kaggle, one T4): SFT works and reproduces; three DPO
+> **Status:** results so far are on **Apertus 1.5B** (Kaggle, one T4): SFT works and reproduces; four DPO
 > attempts did not beat it, for reasons the evaluation exposed. The 8B run is next. Every number below comes from
 > a saved notebook run; nothing is projected.
 
@@ -45,6 +45,7 @@ NFL".
 | 1 | 213 pairs, 1 epoch, lr 1e-5 | ~13 steps; loss stayed at ln 2 (0.692). No learning, no change. |
 | 2 | 565 pairs, 3 epochs, lr 2e-5 | Learned (reward accuracy 93%), but learned to **say less**: 1.04 claims per answer, token F1 72 → 45. The precision-only reward made the shortest true sentence the best answer. Headline rose 62 → 81.5, which was the metric being gamed. |
 | 3 | reward with reference coverage | Learned to **say more**: 4.74 claims per answer, claims supported 89 → 79%, headline 63.5 → 35. 66% of pairs had the reference answer as "chosen", so DPO mostly imitated long off-policy references. |
+| 4 | F1 of on-topic precision and coverage; on-policy pairs only; β 0.3 | No hack, no gain: every metric within two points of SFT (headline 62.5 vs 63.5, 1.65 claims per answer). Only 379 of 1,123 prompts gave a pair, and validation reward accuracy stayed near 0.5–0.6 while train accuracy rose. Too little signal to move the model. |
 
 **The human check that caught it.** 40 answered SFT and DPO rows from attempt 2, shuffled, labelled "does the answer
 actually answer the question?":
@@ -59,6 +60,10 @@ restatements ("Why was David Krejci moved to the third line?" → "He was moved 
 correct bare answers ("Navpad Steel"). Labels are in [`labels/1.5b_quick.json`](labels/1.5b_quick.json) (drafted by
 an LLM, reviewed and accepted by me; n=20 per model, so read the gap as large, not precise).
 
+Re-scoring the same 40 answers with the fixed verifier (metric v2) gives 70% agreement, κ = 0.32. It accepts none of
+the five answers the human check rejected; its 12 errors are all correct answers it rejects, mostly for low coverage
+of a long reference ("On March 7."). So the headline numbers from attempt 3 on are conservative rather than gamed.
+
 **What I take from it**
 
 - A single scalar reward built from a verifier gets optimized along its cheapest axis. Precision-only rewarded
@@ -67,9 +72,11 @@ an LLM, reviewed and accepted by me; n=20 per model, so read the gap as large, n
   reward, was the first signal, and 40 human labels were enough to show the metric was wrong.
 - Falling back to the reference answer as "chosen" made the preference data mostly off-policy; once two thirds of the
   pairs came from it, DPO moved the model towards reference style rather than towards better grounding.
-- Next attempt (prepared, not run yet): reward = harmonic mean of on-topic precision and coverage, so neither
-  shortcut pays; on-policy pairs only (no reference fallback); β = 0.3, 2 epochs; and the fixed verifier scored
-  against the same 40 labels in the same run.
+- Closing both shortcuts (attempt 4: harmonic mean of precision and coverage, on-policy pairs only) stopped the
+  damage, but left DPO with too little signal. SFT samples rarely differ enough to make a pair, and the
+  verifier's own errors (κ 0.32) are large next to the differences DPO would have to learn.
+- What I'd change next: more preference prompts and more samples per prompt so more pairs clear the gap; a
+  coverage check that credits short correct answers; then the same recipe on 8B.
 
 ## Method
 
@@ -114,8 +121,7 @@ follows:
 Earlier attempts used claim support × (0.5 + 0.5 × consistent with reference) (attempts 1–2) and claim support ×
 (0.2 × consistent + 0.8 × coverage) (attempt 3); see [Results](#results) for why each was replaced. The best and worst
 of the model's own samples form a pair if their rewards differ by at least 0.3 (`prefs.min_gap`); the reference answer
-is no longer used as "chosen" (`prefs.gold_fallback: false`). If no sample is fully correct, the
-reference answer becomes "chosen". The SFT adapter is merged into the weights, and DPO trains a new LoRA on top
+is no longer used as "chosen" (`prefs.gold_fallback: false`). The SFT adapter is merged into the weights, and DPO trains a new LoRA on top
 (β=0.3, 2 epochs), so the reference policy is the SFT model, not the original Instruct model.
 
 **Evaluation.**
@@ -155,7 +161,7 @@ python scripts/smoke_test.py      # full pipeline on a tiny random model, CPU, n
 detects the platform and GPU and picks the model: Apertus 8B on a 40 GB+ GPU (Colab Pro A100), otherwise Apertus
 1.5B (free T4 on Colab or Kaggle). Outputs go to Google Drive or `/kaggle/working`. Finished steps are skipped and
 training resumes from its last checkpoint, so after a disconnect you just run it again. To redo later
-stages with new settings, set `REDO_FROM = "dpo"` or `"eval"`; earlier outputs are moved aside, not deleted. Setup (GPU runtime, a
+stages with new settings, set `REDO_FROM = "dpo"`, `"prefs"` or `"eval"`; earlier outputs are moved aside, not deleted. Setup (GPU runtime, a
 `GITHUB_TOKEN` secret for the private repo, an optional `HF_TOKEN`) is described at the top of the notebook.
 
 To open it in Colab, use File → Open notebook → GitHub (with private repos enabled), or
@@ -187,7 +193,7 @@ Each step can also be run on its own (`python -m groundqa.<step> --help`). Any c
 **Compute.** Swiss AI's [fine-tuning recipes](https://github.com/swiss-ai/apertus-finetuning-recipes) report that
 LoRA on the 8B model fits a single 40 GB GPU. With the default sizes (6,000 SFT examples, 2,000 preference prompts,
 600 test questions), I expect the full pipeline to take well under a day on one A100 or H100. Measured on a Kaggle
-T4 with the 1.5B dev config: SFT training about 46 min and DPO training 46–55 min (generation and verification come on top). `model.dtype: auto` uses bf16 on Ampere or newer GPUs and fp16 on
+T4 with the 1.5B dev config: SFT training about 46 min and DPO training 25–55 min (generation and verification come on top). `model.dtype: auto` uses bf16 on Ampere or newer GPUs and fp16 on
 T4/P100. For 8B on a 16–24 GB GPU, `model.load_in_4bit=true` covers SFT and evaluation, but not DPO, which merges
 adapters.
 
