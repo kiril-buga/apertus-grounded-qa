@@ -172,6 +172,8 @@ def verify_rows(examples: dict[str, dict], preds: list[dict], scorer, threshold:
                 # Short span answers (SQuAD-style): check the span appears in the answer.
                 hit = " ".join(_tokens(ref)) in " ".join(_tokens(text))
                 row["ref_consistent"], row["coverage"] = hit, float(hit)
+                for c in row["claims"]:
+                    c["in_ref"] = hit
             else:
                 ref_premise = f"Question: {q}\nAnswer: {ref}"
                 for ci, hyp in enumerate(hyps):
@@ -203,6 +205,8 @@ def verify_rows(examples: dict[str, dict], preds: list[dict], scorer, threshold:
         ref_p = row.pop("_ref_p", None)
         if ref_p is not None:
             row["ref_consistent"] = bool(ref_p) and all(p >= threshold for p in ref_p)
+            for c, p in zip(row["claims"], ref_p):
+                c["in_ref"] = p >= threshold
         cov_p = row.pop("_cov_p", None)
         if cov_p is not None:
             row["coverage"] = round(sum(p >= threshold for p in cov_p) / len(cov_p), 4)

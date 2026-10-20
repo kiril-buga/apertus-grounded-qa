@@ -111,9 +111,10 @@ def main() -> None:
                       max_length=256, eval_steps=50, logging_steps=25, gradient_checkpointing=False)
     cfg["generate"].update(batch_size=8, max_new_tokens=16)
     cfg["verify"].update(backend="lexical", threshold=0.9)
-    cfg["prefs"]["samples_per_prompt"] = 2
+    # A random tiny model's samples all score alike, so on-policy pairs would be empty; use the reference fallback.
+    cfg["prefs"].update(samples_per_prompt=2, gold_fallback=True, min_gap=0.5)
     cfg["dpo"].update(output_dir=str(work / "runs/dpo"), max_steps=2, batch_size=2, grad_accum=1,
-                      max_length=256, eval_steps=1, logging_steps=1, eval_fraction=0.2,
+                      max_length=256, eval_steps=1, logging_steps=1, eval_fraction=0.2, min_pairs=1,
                       gradient_checkpointing=False)
     cfg_path = work / "smoke.yaml"
     cfg_path.write_text(yaml.safe_dump(cfg, sort_keys=False))

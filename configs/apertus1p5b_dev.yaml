@@ -52,17 +52,18 @@ verify:
   batch_size: 32
 
 prefs:
+  reward: f1                 # precision (attempts 1-2) | weighted (attempt 3) | f1; see groundqa.prefs.reward
   samples_per_prompt: 4
   temperature: 0.9
-  min_gap: 0.5
+  min_gap: 0.3               # F1 rewards are continuous; 0.5 would drop most on-policy pairs
   over_refusal_reward: 0.3
-  gold_fallback: true
+  gold_fallback: false       # attempt 3: 66% of pairs used the reference as "chosen" and DPO imitated it
 
 dpo:
   output_dir: runs/dev/dpo
-  beta: 0.1
+  beta: 0.3                  # stay closer to SFT; at 0.1 attempts 2-3 drifted far from it
   lr: 2.0e-5                 # LoRA DPO; at 1e-5 x 13 steps the first run barely moved (loss 0.692)
-  epochs: 3
+  epochs: 2
   batch_size: 2
   grad_accum: 4
   max_length: 1536

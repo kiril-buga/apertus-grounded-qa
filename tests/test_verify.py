@@ -98,3 +98,12 @@ def test_coverage_penalises_answers_that_say_less():
 def test_author_doesnt_mention_is_an_abstention():
     assert is_abstention("The author doesn't mention anything about a plan for the scrappy strippy UFO quilt.")
     assert not is_abstention("The author mentions three plans for the quilt.")
+
+
+def test_claims_record_whether_they_are_in_the_reference():
+    ref = "The reactor uses molten salt cooling. It was built in 1965."
+    examples = {"a": _ex("a", ref + " It sits on a small green hill.", ref)}
+    preds = [{"id": "a", "prediction": "The reactor uses molten salt cooling. It sits on a small green hill."}]
+    row = verify_rows(examples, preds, LexicalScorer(), threshold=0.99)[0]
+    assert [c["in_ref"] for c in row["claims"]] == [True, False]   # second claim is true but not in the reference
+    assert [c["supported"] for c in row["claims"]] == [True, True]

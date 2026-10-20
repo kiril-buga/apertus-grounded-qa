@@ -111,3 +111,36 @@ def test_coverage_metric_ignores_rows_without_it():
             {**_row("2", True, False, 1, 1, True, 0.5), "coverage": 0.8},
             _row("3", True, False, 1, 1, True, 0.5)]
     assert compute_metrics(rows)["coverage"] == pytest.approx(0.6)
+
+
+def _claims_row(supported, in_ref, coverage):
+    r = _row("a", True, False, len(supported), sum(supported), all(in_ref))
+    r["claims"] = [{"text": "c", "p": 1.0, "supported": s, "in_ref": i} for s, i in zip(supported, in_ref)]
+    r["coverage"] = coverage
+    return r
+
+
+def test_f1_reward_penalises_both_shortcuts():
+    full = _claims_row([True, True], [True, True], 1.0)
+    terse = _claims_row([True], [True], 0.25)                               # attempt 2's hack
+    padded = _claims_row([True] * 6, [True, True, False, False, False, False], 1.0)  # attempt 3's hack
+    f1 = {k: reward(r, kind="f1") for k, r in [("full", full), ("terse", terse), ("padded", padded)]}
+    assert f1["full"] == 1.0
+    assert f1["full"] - f1["terse"] >= 0.3 and f1["full"] - f1["padded"] >= 0.3  # both pairs clear min_gap
+    # the earlier rewards each liked one of the shortcuts
+    assert reward(terse, kind="precision") == reward(full, kind="precision") == 1.0
+    assert reward(padded, kind="weighted") >= 0.8 > reward(padded, kind="f1")
+
+
+def test_unknown_reward_kind_is_rejected():
+    with pytest.raises(ValueError):
+        reward(_row("a", True, False, 1, 1, True), kind="nope")
+
+
+def test_build_pairs_without_gold_stays_on_policy():
+    examples = {"q": {"id": "q", "question": "Q?", "context": "C", "answer": "A", "answerable": True}}
+    verified = [{**_claims_row([True], [True], 0.25), "id": "q", "prediction": "terse"},
+                {**_claims_row([True, True], [True, True], 1.0), "id": "q", "prediction": "full", "sample": 1}]
+    pairs, stats = build_pairs(examples, verified, min_gap=0.3, gold_fallback=False, kind="f1")
+    assert stats["chosen_from_sample"] == 1 and stats.get("chosen_from_gold", 0) == 0
+    assert pairs[0]["chosen"][0]["content"] == "full" and pairs[0]["rejected"][0]["content"] == "terse"

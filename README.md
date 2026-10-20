@@ -67,8 +67,9 @@ an LLM, reviewed and accepted by me; n=20 per model, so read the gap as large, n
   reward, was the first signal, and 40 human labels were enough to show the metric was wrong.
 - Falling back to the reference answer as "chosen" made the preference data mostly off-policy; once two thirds of the
   pairs came from it, DPO moved the model towards reference style rather than towards better grounding.
-- Next attempt (not run yet): a reward that is the harmonic mean of claim support and coverage, on-policy pairs
-  only (no reference fallback), β = 0.3, and the fixed verifier scored against the same 40 labels first.
+- Next attempt (prepared, not run yet): reward = harmonic mean of on-topic precision and coverage, so neither
+  shortcut pays; on-policy pairs only (no reference fallback); β = 0.3, 2 epochs; and the fixed verifier scored
+  against the same 40 labels in the same run.
 
 ## Method
 
@@ -108,12 +109,14 @@ follows:
 | Unanswerable, model abstains | 1.0 |
 | Unanswerable, model answers | 0.0 |
 | Answerable, model abstains | 0.3 |
-| Answerable, model answers | share of claims supported × (0.2 × consistent with reference + 0.8 × coverage of the reference) |
+| Answerable, model answers | harmonic mean of on-topic precision (share of claims supported by the context *and* in the reference) and coverage of the reference |
 
-Attempts 1 and 2 used share of claims supported × (0.5 + 0.5 × consistent with reference); see [Results](#results)
-for why that changed. The best and worst samples form a pair if their rewards differ by at least 0.5. If no sample is fully correct, the
+Earlier attempts used claim support × (0.5 + 0.5 × consistent with reference) (attempts 1–2) and claim support ×
+(0.2 × consistent + 0.8 × coverage) (attempt 3); see [Results](#results) for why each was replaced. The best and worst
+of the model's own samples form a pair if their rewards differ by at least 0.3 (`prefs.min_gap`); the reference answer
+is no longer used as "chosen" (`prefs.gold_fallback: false`). If no sample is fully correct, the
 reference answer becomes "chosen". The SFT adapter is merged into the weights, and DPO trains a new LoRA on top
-(β=0.1), so the reference policy is the SFT model, not the original Instruct model.
+(β=0.3, 2 epochs), so the reference policy is the SFT model, not the original Instruct model.
 
 **Evaluation.**
 

@@ -32,6 +32,9 @@ def main() -> None:
 
     keep = ("prompt", "chosen", "rejected")
     rows = [{k: r[k] for k in keep} for r in read_jsonl(args.prefs)]
+    if len(rows) < d.get("min_pairs", 20):
+        raise SystemExit(f"only {len(rows)} preference pairs in {args.prefs}; too few to train DPO. "
+                         "Lower prefs.min_gap, raise prefs.samples_per_prompt, or set prefs.gold_fallback: true.")
     random.Random(seed).shuffle(rows)
     n_eval = max(1, int(len(rows) * d.get("eval_fraction", 0.05)))
     train, val = Dataset.from_list(rows[n_eval:]), Dataset.from_list(rows[:n_eval])

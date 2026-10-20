@@ -17,9 +17,20 @@ from .prompts import prompt_messages
 from .verify import make_scorer, verify_rows
 
 
-def reward(row: dict, over_refusal_reward: float = 0.3) -> float:
-    """1.0 is ideal: every claim supported, consistent with the reference and covering all of it. Answering an
-    unanswerable question scores 0; refusing an answerable one scores `over_refusal_reward`."""
+REWARDS = ("precision", "weighted", "f1")
+
+
+def reward(row: dict, over_refusal_reward: float = 0.3, kind: str = "f1") -> float:
+    """Score one verified answer; 1.0 is ideal. Answering an unanswerable question scores 0; refusing an answerable one
+    scores `over_refusal_reward`. For answered, answerable questions:
+
+      precision  claim support x (0.5 + 0.5 x consistent)        DPO attempts 1-2; rewarded saying less
+      weighted   claim support x (0.2 x consistent + 0.8 x cov.)  attempt 3; rewarded saying more
+      f1         harmonic mean of on-topic precision (claims supported by the page AND in the reference)
+                 and coverage of the reference; low if either is low, so neither shortcut pays
+    """
+    if kind not in REWARDS:
+        raise ValueError(f"unknown reward {kind!r}; expected one of {REWARDS}")
     if not row["answerable"]:
         return 1.0 if row["abstained"] else 0.0
     if row["abstained"]:
@@ -27,8 +38,12 @@ def reward(row: dict, over_refusal_reward: float = 0.3) -> float:
     if row["n_claims"] == 0:
         return 0.0
     support = row["n_supported"] / row["n_claims"]
-    if row.get("coverage") is None:
+    if kind == "precision" or row.get("coverage") is None:
         return support * (0.5 + 0.5 * bool(row["ref_consistent"]))
+    if kind == "f1":
+        on_topic = sum(c["supported"] and c.get("in_ref", True) for c in row["claims"]) / row["n_claims"]
+        cov = row["coverage"]
+        return 0.0 if on_topic + cov == 0 else 2 * on_topic * cov / (on_topic + cov)
     # Without the coverage term the best-scoring answer is the shortest true one ("He was moved to the third line.").
     # Coverage carries most of the weight so that a terse-vs-complete pair clears prefs.min_gap (0.5) and is kept.
     return support * (0.2 * bool(row["ref_consistent"]) + 0.8 * row["coverage"])
@@ -36,10 +51,10 @@ def reward(row: dict, over_refusal_reward: float = 0.3) -> float:
 
 def build_pairs(examples: dict[str, dict], verified: list[dict], min_gap: float = 0.5,
                 over_refusal_reward: float = 0.3, gold_fallback: bool = True,
-                system_in_user: bool = False) -> tuple[list[dict], Counter]:
+                system_in_user: bool = False, kind: str = "f1") -> tuple[list[dict], Counter]:
     by_id = defaultdict(list)
     for row in verified:
-        by_id[row["id"]].append((reward(row, over_refusal_reward), row["prediction"]))
+        by_id[row["id"]].append((reward(row, over_refusal_reward, kind), row["prediction"]))
 
     pairs, stats = [], Counter()
     for ex_id, scored in by_id.items():
@@ -84,6 +99,7 @@ def main() -> None:
         min_gap=p.get("min_gap", 0.5),
         over_refusal_reward=p.get("over_refusal_reward", 0.3),
         gold_fallback=p.get("gold_fallback", True),
+        kind=p.get("reward", "f1"),
         system_in_user=cfg["model"].get("system_in_user", False),
     )
     write_jsonl(args.out, pairs)
