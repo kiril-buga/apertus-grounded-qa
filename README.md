@@ -6,9 +6,9 @@ Training runs in two stages: supervised fine-tuning (SFT), then DPO on preferenc
 verifier. The evaluation checks every claim in an answer against its context, and the automatic metrics are
 validated against human labels before I trust them.
 
-> **Status:** the pipeline is complete and tested end to end (unit tests plus a CPU smoke run on a tiny model).
-> The GPU runs on Apertus are next, and results will go in [Results](#results). No numbers here are made up or
-> projected.
+> **Status:** results so far are on **Apertus 1.5B** (Kaggle, one T4): SFT works and reproduces; three DPO
+> attempts did not beat it, for reasons the evaluation exposed. The 8B run is next. Every number below comes from
+> a saved notebook run; nothing is projected.
 
 ## Why this project
 
@@ -20,24 +20,55 @@ and checks the measurement against human labels.
 
 ## Results
 
-_Not run yet._ After `scripts/run_all.sh`, `results/results.md` holds the table below. It reports 95% bootstrap CIs
-and paired differences against the base model.
+Apertus 1.5B Instruct, 200 held-out test questions (140 answerable, 60 unanswerable). Full tables with 95% bootstrap
+CIs, settings and commit references for every run: [`docs/results/1.5b.md`](docs/results/1.5b.md).
 
-| Metric | Apertus-8B-Instruct | + SFT | + SFT + DPO |
-|---|---|---|---|
-| Grounded accuracy ↑ | | | |
-| Abstains when unanswerable ↑ | | | |
-| Refuses when answerable ↓ | | | |
-| Claims supported by context ↑ | | | |
-| Consistent with reference ↑ | | | |
+**SFT does what it should, and reproduces.**
 
-Metric validity, from `groundqa.annotate agree` on a stratified, run-blind sample:
+| | Base | + SFT |
+|---|---|---|
+| Grounded accuracy | 22.5 | **63.5** |
+| Abstains when the context lacks the answer | 10.0 | **98.3** |
+| Refuses answerable questions | 0.0 | 0.0 |
+| Claims supported by the context | 67.4 | **88.9** |
+| Claims per answer | 2.32 | 1.47 |
 
-| Comparison | n | Agreement | Cohen's κ |
-|---|---|---|---|
-| claim supported: verifier vs human | | | |
-| overall correct: verifier vs human | | | |
-| overall correct: LLM judge vs human | | | |
+(Run 3, metric v2; the gains shown all have CIs excluding 0. SFT grounded accuracy over three independent trainings:
+62.5, 62.0, 63.5.) The base model answers 54 of 60 unanswerable questions anyway, with invented details: an "Emily
+Chen" as Utah State valedictorian, "Multi-Functional Energy Storage Hub" for MESH, Donovan Solano as "a player in the
+NFL".
+
+**DPO did not beat SFT. Each attempt failed in a way the evaluation explained.**
+
+| DPO attempt | What changed | What happened |
+|---|---|---|
+| 1 | 213 pairs, 1 epoch, lr 1e-5 | ~13 steps; loss stayed at ln 2 (0.692). No learning, no change. |
+| 2 | 565 pairs, 3 epochs, lr 2e-5 | Learned (reward accuracy 93%), but learned to **say less**: 1.04 claims per answer, token F1 72 → 45. The precision-only reward made the shortest true sentence the best answer. Headline rose 62 → 81.5, which was the metric being gamed. |
+| 3 | reward with reference coverage | Learned to **say more**: 4.74 claims per answer, claims supported 89 → 79%, headline 63.5 → 35. 66% of pairs had the reference answer as "chosen", so DPO mostly imitated long off-policy references. |
+
+**The human check that caught it.** 40 answered SFT and DPO rows from attempt 2, shuffled, labelled "does the answer
+actually answer the question?":
+
+| | SFT | SFT + DPO |
+|---|---|---|
+| Human: answers the question | **100%** | **75%** |
+| Verifier (metric v1): correct | 55% | 70% |
+
+Agreement 50%, Cohen's κ = −0.23: the automatic metric ranked the models in the wrong order. It accepted evasive
+restatements ("Why was David Krejci moved to the third line?" → "He was moved to the third line.") and rejected
+correct bare answers ("Navpad Steel"). Labels are in [`labels/1.5b_quick.json`](labels/1.5b_quick.json) (drafted by
+an LLM, reviewed and accepted by me; n=20 per model, so read the gap as large, not precise).
+
+**What I take from it**
+
+- A single scalar reward built from a verifier gets optimized along its cheapest axis. Precision-only rewarded
+  brevity; adding recall with a heavy weight rewarded padding.
+- A metric that shares the reward's blind spot will report the hack as progress. Token F1, which was not part of the
+  reward, was the first signal, and 40 human labels were enough to show the metric was wrong.
+- Falling back to the reference answer as "chosen" made the preference data mostly off-policy; once two thirds of the
+  pairs came from it, DPO moved the model towards reference style rather than towards better grounding.
+- Next attempt (not run yet): a reward that is the harmonic mean of claim support and coverage, on-policy pairs
+  only (no reference fallback), β = 0.3, and the fixed verifier scored against the same 40 labels first.
 
 ## Method
 
@@ -77,9 +108,10 @@ follows:
 | Unanswerable, model abstains | 1.0 |
 | Unanswerable, model answers | 0.0 |
 | Answerable, model abstains | 0.3 |
-| Answerable, model answers | share of claims supported × (0.5 + 0.5 × consistent with reference) |
+| Answerable, model answers | share of claims supported × (0.2 × consistent with reference + 0.8 × coverage of the reference) |
 
-The best and worst samples form a pair if their rewards differ by at least 0.5. If no sample is fully correct, the
+Attempts 1 and 2 used share of claims supported × (0.5 + 0.5 × consistent with reference); see [Results](#results)
+for why that changed. The best and worst samples form a pair if their rewards differ by at least 0.5. If no sample is fully correct, the
 reference answer becomes "chosen". The SFT adapter is merged into the weights, and DPO trains a new LoRA on top
 (β=0.1), so the reference policy is the SFT model, not the original Instruct model.
 
@@ -90,10 +122,17 @@ reference answer becomes "chosen". The SFT adapter is merged into the weights, a
   checks each claim against the context. The context is chunked, and the best-scoring chunk counts.
 - *Abstention:* recall on unanswerable questions, over-refusal on answerable ones, and F1. The detector also accepts
   paraphrases, so the base model, which never saw the abstention string, isn't penalised for wording.
-- *Reference:* each claim must also follow from the reference answer. Short references use span containment.
+- *Short answers:* a claim under six words ("Navpad Steel") is judged as "The answer to the question … is: Navpad
+  Steel", since an NLI model can't judge a bare name.
+- *Reference:* each claim must also follow from the reference answer (precision), and *coverage* measures the share
+  of the reference's sentences that follow from the question plus answer (recall). Short references use span
+  containment.
 - *Headline:* grounded accuracy. An example counts as correct if the model abstains when it should, or, when it
-  answers, every claim is supported and consistent with the reference.
+  answers, every claim is supported, consistent with the reference, and covers at least half of it.
 - *Statistics:* 95% bootstrap CIs, plus paired bootstrap differences between models on the same examples.
+- *Quick human check:* the notebook prints 40 shuffled answers; you mark each y/n for "does it answer the
+  question?" and get agreement with the verifier. Saved labels (`labels/`) are re-scored by `groundqa.annotate
+  quick` whenever the metric changes.
 - *Metric validation:* `groundqa.annotate` exports a stratified sample, shuffled so you can't tell which model wrote
   each row, and reports Cohen's κ between human labels and the verifier. Optionally it also compares an LLM judge
   (`groundqa.judge`, any OpenAI-compatible endpoint). The NLI threshold is tuned on these labels, not on the test
@@ -144,8 +183,8 @@ Each step can also be run on its own (`python -m groundqa.<step> --help`). Any c
 
 **Compute.** Swiss AI's [fine-tuning recipes](https://github.com/swiss-ai/apertus-finetuning-recipes) report that
 LoRA on the 8B model fits a single 40 GB GPU. With the default sizes (6,000 SFT examples, 2,000 preference prompts,
-600 test questions), I expect the full pipeline to take well under a day on one A100 or H100. I'll replace this
-estimate with measured times after the first run. `model.dtype: auto` uses bf16 on Ampere or newer GPUs and fp16 on
+600 test questions), I expect the full pipeline to take well under a day on one A100 or H100. Measured on a Kaggle
+T4 with the 1.5B dev config: SFT training about 46 min and DPO training 46–55 min (generation and verification come on top). `model.dtype: auto` uses bf16 on Ampere or newer GPUs and fp16 on
 T4/P100. For 8B on a 16–24 GB GPU, `model.load_in_4bit=true` covers SFT and evaluation, but not DPO, which merges
 adapters.
 
@@ -181,6 +220,11 @@ Then set `data.source: jsonl` and `data.path: path/to/file.jsonl`. `group` keeps
 - Context-swap negatives can occasionally contain the answer by coincidence. Human labels catch these, and the
   annotation CSV has a notes column for them.
 - The NLI model has a 512-token window. Chunking deals with long contexts but can miss evidence split across chunks.
+- Some questions refer to the page itself ("What is the context primarily discussing?"). Swapping in another page
+  makes them answerable rather than unanswerable, so a few "unanswerable" labels are wrong.
+- fp16 greedy decoding on a T4 isn't bit-for-bit reproducible; regenerating answers with the same adapter changed a
+  few of them (see the run 2 / human-check tables).
+- The human check is 40 rows labelled by one person, from an LLM-drafted proposal.
 
 ## Layout
 
@@ -199,6 +243,8 @@ src/groundqa/
   annotate.py       human-label export and agreement
   judge.py          optional LLM judge for comparison
 notebooks/          run_pipeline.ipynb (Colab / Kaggle)
+docs/results/       full result tables per model, with run settings and commits
+labels/             saved human labels, re-scored when the metric changes
 scripts/            run_all.sh, smoke_test.py
 tests/              unit tests
 ```
