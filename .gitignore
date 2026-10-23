@@ -6,3 +6,4 @@ runs/
 *.safetensors
 results/annotation.csv
 wandb/
+.venv
