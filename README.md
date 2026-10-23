@@ -193,12 +193,15 @@ python -m groundqa.annotate agree --csv results/annotation.csv
 ```
 
 Apertus 8B SFT and evaluation on one 16 GB GPU (QLoRA, e.g. an RTX 4080 Super). Same data, test questions and
-SFT recipe as the 1.5B dev run, so the results line up with it. On Windows, run it in WSL2 (Ubuntu):
+SFT recipe as the 1.5B dev run, so the results line up with it. On Windows, run it in WSL2 (Ubuntu). It needs
+Python 3.11 or newer (Ubuntu 22.04 ships 3.10); [uv](https://docs.astral.sh/uv/) fetches one without touching the
+system Python:
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install torch                                  # the default Linux wheel is a CUDA build
-pip install "transformers==5.19.*" "trl==1.15.*" "peft==0.21.*" -e ".[qlora]"
+curl -LsSf https://astral.sh/uv/install.sh | sh && source $HOME/.local/bin/env
+uv venv --python 3.12 .venv && source .venv/bin/activate
+uv pip install torch                               # the default Linux wheel is a CUDA build
+uv pip install "transformers==5.19.*" "trl==1.15.*" "peft==0.21.*" -e ".[qlora]"
 hf auth login                                      # only if the model page asks you to accept its terms
 python scripts/run_sft_eval.py --check             # 3 SFT steps and 4 answers: catches setup problems early
 python scripts/run_sft_eval.py                     # the full run; rerun the same command after an interruption
