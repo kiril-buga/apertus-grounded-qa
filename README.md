@@ -7,10 +7,10 @@ given context**, and to **say so when the context doesn't contain the answer**. 
 supervised fine-tuning (SFT), then DPO on preference pairs ranked by a claim-level verifier. The evaluation checks
 every claim in an answer against its context, and the automatic metric is checked against human labels.
 
-> **Status:** results so far are on **Apertus 1.5B** (Kaggle, one T4): SFT works and reproduces; four DPO
-> attempts did not beat it, for reasons the evaluation exposed. The pipeline and config for
-> [Apertus 8B Instruct](https://huggingface.co/swiss-ai/Apertus-8B-Instruct-2509) are ready but have not been run.
-> Every result below comes from a saved notebook run.
+> **Status:** SFT works on **Apertus 1.5B** (Kaggle, one T4; reproduced three times) and on
+> **[Apertus 8B](https://huggingface.co/swiss-ai/Apertus-8B-Instruct-2509)** (QLoRA, one RTX 4080 Super). Four DPO
+> attempts on 1.5B did not beat SFT, for reasons the evaluation exposed; DPO hasn't been run on 8B. Every result
+> below comes from a saved run.
 
 ## Why this project
 
@@ -22,23 +22,28 @@ and checks the measurement against human labels.
 
 ## Results
 
-Apertus 1.5B Instruct, 200 held-out test questions (140 answerable, 60 unanswerable). Full tables with 95% bootstrap
-CIs, settings and commit references for every run: [`docs/results/1.5b.md`](docs/results/1.5b.md).
+Apertus 1.5B and 8B Instruct, the same 200 held-out test questions (140 answerable, 60 unanswerable). Full tables
+with 95% bootstrap CIs, settings and commit references: [`docs/results/1.5b.md`](docs/results/1.5b.md) and
+[`docs/results/8b.md`](docs/results/8b.md).
 
-**SFT does what it should, and reproduces.**
+**SFT does what it should, on both sizes.**
 
-| | Base | + SFT |
-|---|---|---|
-| Grounded accuracy | 22.5 | **63.5** |
-| Abstains when the context lacks the answer | 10.0 | **98.3** |
-| Refuses answerable questions | 0.0 | 0.0 |
-| Claims supported by the context | 67.4 | **88.9** |
-| Claims per answer | 2.32 | 1.47 |
+| | 1.5B base | 1.5B + SFT | 8B base | 8B + SFT |
+|---|---|---|---|---|
+| Grounded accuracy | 22.5 | **63.5** | 37.0 | **65.0** |
+| Abstains when the context lacks the answer | 10.0 | **98.3** | 33.3 | **98.3** |
+| Refuses answerable questions | 0.0 | 0.0 | 0.7 | 0.7 |
+| Claims supported by the context | 67.4 | **88.9** | 74.8 | **90.1** |
+| Token F1 vs reference | 56.7 | **72.2** | 67.6 | **77.3** |
+| Claims per answer | 2.32 | 1.47 | 1.66 | 1.59 |
 
-(Run 3, metric v2; the gains shown all have CIs excluding 0. SFT grounded accuracy over three independent trainings:
-62.5, 62.0, 63.5.) The base model answers 54 of 60 unanswerable questions anyway, with invented details: an "Emily
-Chen" as Utah State valedictorian, "Multi-Functional Energy Storage Hub" for MESH, Donovan Solano as "a player in the
-NFL".
+(Metric v2. Every SFT gain shown in bold has a CI excluding 0. 1.5B SFT grounded accuracy over three independent
+trainings: 62.5, 62.0, 63.5. 8B was trained and evaluated in 4 bits.) The base models answer unanswerable questions
+anyway, with invented details: 1.5B in 54 of 60 cases (an "Emily Chen" as Utah State valedictorian, Donovan Solano
+as "a player in the NFL"), 8B in 40 of 60 (MESH "stands for 'Make Every Situation Holy'"). The 8B base model starts
+well ahead of 1.5B, but after SFT the two land close together: 8B leads on every answer-quality metric by 0.6–5.3
+points, with overlapping CIs. Both reach 98.3% abstention, so the extra capacity shows up in how closely answers match
+the reference, not in knowing when to abstain.
 
 **DPO did not beat SFT. Each attempt failed in a way the evaluation explained.**
 
@@ -216,7 +221,9 @@ Each step can also be run on its own (`python -m groundqa.<step> --help`). Any c
 **Compute.** Swiss AI's [fine-tuning recipes](https://github.com/swiss-ai/apertus-finetuning-recipes) report that
 LoRA on the 8B model fits a single 40 GB GPU. With the default sizes (6,000 SFT examples, 2,000 preference prompts,
 600 test questions), I estimate the full pipeline at well under a day on one A100 or H100 (not measured). Measured on a Kaggle
-T4 with the 1.5B dev config: SFT training about 46 min and DPO training 25–55 min (generation and verification come on top). `model.dtype: auto` uses bf16 on Ampere or newer GPUs and fp16 on
+T4 with the 1.5B dev config: SFT training about 46 min and DPO training 25–55 min (generation and verification come on top).
+Measured on an RTX 4080 Super with `configs/apertus8b_16gb.yaml`: 8B QLoRA SFT 52 min at 7.1 GB peak memory, and about
+8 min for generating and verifying both models' answers. `model.dtype: auto` uses bf16 on Ampere or newer GPUs and fp16 on
 T4/P100. For 8B on a 16–24 GB GPU, `configs/apertus8b_16gb.yaml` loads the model in 4 bits; that covers SFT and
 evaluation, but not DPO yet, which merges adapters into the weights.
 
