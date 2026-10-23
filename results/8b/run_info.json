@@ -1,0 +1,22 @@
+{
+  "python": "3.12.15",
+  "platform": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+  "torch": "2.14.1",
+  "transformers": "5.19.0",
+  "trl": "1.15.0",
+  "peft": "0.21.2",
+  "bitsandbytes": "0.50.2",
+  "gpu": "NVIDIA GeForce RTX 4080 SUPER",
+  "gpu_memory_gb": 16.0,
+  "bf16": true,
+  "config": "configs/apertus8b_16gb.yaml",
+  "minutes": {
+    "base answers": 3.2,
+    "SFT": 52.3,
+    "SFT answers": 3.8,
+    "verify base": 0.3,
+    "verify sft": 0.3,
+    "report": 0.0
+  },
+  "finished": "2026-10-23 14:00"
+}
