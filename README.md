@@ -192,6 +192,21 @@ python -m groundqa.annotate export --config configs/apertus8b.yaml \
 python -m groundqa.annotate agree --csv results/annotation.csv
 ```
 
+Apertus 8B SFT and evaluation on one 16 GB GPU (QLoRA, e.g. an RTX 4080 Super). Same data, test questions and
+SFT recipe as the 1.5B dev run, so the results line up with it. On Windows, run it in WSL2 (Ubuntu):
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install torch                                  # the default Linux wheel is a CUDA build
+pip install "transformers==5.19.*" "trl==1.15.*" "peft==0.21.*" -e ".[qlora]"
+hf auth login                                      # only if the model page asks you to accept its terms
+python scripts/run_sft_eval.py --check             # 3 SFT steps and 4 answers: catches setup problems early
+python scripts/run_sft_eval.py                     # the full run; rerun the same command after an interruption
+```
+
+The first run downloads about 16 GB of weights. The results (table, training log, verified answers, GPU and
+step timings) land in `results/8b/`, ready to commit.
+
 Each step can also be run on its own (`python -m groundqa.<step> --help`). Any config value can be overridden with
 `--set section.key=value`, for example `--set sft.lr=2e-4`.
 
@@ -199,8 +214,8 @@ Each step can also be run on its own (`python -m groundqa.<step> --help`). Any c
 LoRA on the 8B model fits a single 40 GB GPU. With the default sizes (6,000 SFT examples, 2,000 preference prompts,
 600 test questions), I estimate the full pipeline at well under a day on one A100 or H100 (not measured). Measured on a Kaggle
 T4 with the 1.5B dev config: SFT training about 46 min and DPO training 25–55 min (generation and verification come on top). `model.dtype: auto` uses bf16 on Ampere or newer GPUs and fp16 on
-T4/P100. For 8B on a 16–24 GB GPU, `model.load_in_4bit=true` covers SFT and evaluation, but not DPO, which merges
-adapters.
+T4/P100. For 8B on a 16–24 GB GPU, `configs/apertus8b_16gb.yaml` loads the model in 4 bits; that covers SFT and
+evaluation, but not DPO yet, which merges adapters into the weights.
 
 ## Using your own testbed
 
@@ -243,7 +258,7 @@ Then set `data.source: jsonl` and `data.path: path/to/file.jsonl`. `group` keeps
 ## Layout
 
 ```
-configs/            apertus8b.yaml (main), apertus1p5b_dev.yaml (cheap iteration)
+configs/            apertus8b.yaml (main), apertus8b_16gb.yaml (QLoRA, 16 GB GPU), apertus1p5b_dev.yaml (cheap iteration)
 src/groundqa/
   data.py           loaders, document-level split, hard-negative unanswerables
   prepare.py        writes data/<name>/{train,pref,val,test}.jsonl
@@ -259,7 +274,7 @@ src/groundqa/
 notebooks/          run_pipeline.ipynb (Colab / Kaggle)
 docs/results/       full result tables per model, with run settings and commits
 labels/             saved human labels, re-scored when the metric changes
-scripts/            run_all.sh, smoke_test.py
+scripts/            run_all.sh, run_sft_eval.py (SFT + eval, resumable), smoke_test.py
 tests/              unit tests
 ```
 

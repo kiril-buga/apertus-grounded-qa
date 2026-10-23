@@ -1,0 +1,76 @@
+# Apertus 8B on one 16 GB GPU (e.g. RTX 4080 Super): QLoRA SFT and evaluation.
+# Same data and SFT recipe as apertus1p5b_dev.yaml, so the 8B numbers sit next to the 1.5B ones on the same
+# 200 test questions. Only the model, 4-bit loading and the batch shape (same effective batch of 16) differ.
+# Run it with: python scripts/run_sft_eval.py --config configs/apertus8b_16gb.yaml
+model:
+  name: swiss-ai/Apertus-8B-Instruct-2509
+  dtype: auto               # bf16 on RTX 30xx/40xx and newer
+  attn_implementation: sdpa
+  load_in_4bit: true         # NF4 weights (~5 GB) + bf16 LoRA; DPO needs unmerged-adapter support first
+  system_in_user: false
+  chat_template_kwargs: {}
+
+data:                        # identical to apertus1p5b_dev.yaml: same splits, same test questions
+  source: rag12k
+  path: null
+  dir: data/rag12k_dev
+  seed: 13
+  splits: {train: 0.65, pref: 0.15, val: 0.05, test: 0.15}
+  max_train: 1500
+  max_pref: 1200
+  max_val: 100
+  max_test: 200
+  max_context_chars: 4000
+  unanswerable_fraction: 0.3
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: all-linear
+
+sft:
+  output_dir: runs/8b/sft
+  epochs: 2
+  lr: 2.0e-4
+  batch_size: 1              # 1 x 16 = the 1.5B run's 4 x 4
+  grad_accum: 16
+  max_length: 1536
+  warmup_ratio: 0.03
+  eval_steps: 50             # also the checkpoint interval; an interrupted run resumes from the last one
+  logging_steps: 10
+  gradient_checkpointing: true
+  report_to: none
+
+generate:
+  batch_size: 8              # halves itself on out-of-memory
+  max_new_tokens: 200
+
+verify:
+  backend: nli
+  nli_model: MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli
+  threshold: 0.5
+  chunk_words: 250
+  batch_size: 32
+
+prefs:
+  reward: f1
+  samples_per_prompt: 4
+  temperature: 0.9
+  min_gap: 0.3
+  over_refusal_reward: 0.3
+  gold_fallback: false
+
+dpo:                         # not used yet: DPO merges the SFT adapter, which a 4-bit model can't take
+  output_dir: runs/8b/dpo
+  beta: 0.3
+  lr: 2.0e-5
+  epochs: 2
+  batch_size: 1
+  grad_accum: 8
+  max_length: 1536
+  eval_fraction: 0.05
+  eval_steps: 25
+  logging_steps: 5
+  gradient_checkpointing: true
+  report_to: none

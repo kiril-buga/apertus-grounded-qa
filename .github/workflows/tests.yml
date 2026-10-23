@@ -22,3 +22,7 @@ jobs:
         run: pytest -q
       - name: Smoke test (whole pipeline on a tiny random model)
         run: python scripts/smoke_test.py
+      - name: SFT + eval runner on the tiny model
+        run: |
+          python scripts/smoke_test.py --assets-only --workdir "$RUNNER_TEMP/runner"
+          python scripts/run_sft_eval.py --config "$RUNNER_TEMP/runner/smoke.yaml" --allow-cpu --check

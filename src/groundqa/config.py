@@ -16,7 +16,7 @@ def _parse_value(raw: str):
 
 
 def load_config(path: str, overrides: list[str] | None = None) -> dict:
-    cfg = yaml.safe_load(Path(path).read_text())
+    cfg = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     for item in overrides or []:
         key, _, raw = item.partition("=")
         node = cfg
@@ -52,7 +52,7 @@ def seed_everything(seed: int) -> None:
 
 
 def read_jsonl(path: str | Path) -> list[dict]:
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return [json.loads(line) for line in f if line.strip()]
 
 
@@ -61,7 +61,7 @@ def write_jsonl(path: str | Path, rows) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".tmp")
-    with open(tmp, "w") as f:
+    with open(tmp, "w", encoding="utf-8") as f:
         for row in rows:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
     tmp.replace(path)

@@ -6,6 +6,7 @@
 import json
 from pathlib import Path
 
+import torch
 from datasets import Dataset
 from trl import SFTConfig, SFTTrainer
 
@@ -70,6 +71,8 @@ def main() -> None:
     trainer.save_model(s["output_dir"])
     tok.save_pretrained(s["output_dir"])
 
+    if torch.cuda.is_available():
+        print(f"peak GPU memory: {torch.cuda.max_memory_allocated() / 2**30:.1f} GB")
     log = Path(s["output_dir"]) / "log_history.json"
     log.write_text(json.dumps(trainer.state.log_history, indent=2))
     print(f"saved adapter to {s['output_dir']}")
