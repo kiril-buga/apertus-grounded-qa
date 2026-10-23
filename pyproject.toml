@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "groundqa"
 version = "0.1.0"
 description = "LoRA SFT + DPO of Apertus for grounded answers and abstention, evaluated with claim-level verification"
-requires-python = ">=3.11"   # trl 1.15 needs 3.11+
+requires-python = ">=3.10"   # the pinned trl 1.15 (README, CI) needs 3.11+; older trl 1.x installs on 3.10
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
 authors = [{ name = "Kiril Buga" }]
