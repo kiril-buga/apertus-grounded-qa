@@ -53,7 +53,7 @@ verify:
 
 prefs:
   reward: f1                 # precision (attempts 1-2) | weighted (attempt 3) | f1; see groundqa.prefs.reward
-  samples_per_prompt: 4
+  samples_per_prompt: 8      # attempt 5; with 4, two thirds of prompts had no pair at min_gap 0.3
   temperature: 0.9
   min_gap: 0.3               # F1 rewards are continuous; 0.5 would drop most on-policy pairs
   over_refusal_reward: 0.3
