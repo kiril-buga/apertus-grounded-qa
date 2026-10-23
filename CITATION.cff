@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this code or build on it, please cite it as below."
+type: software
+title: "Apertus Grounded QA: LoRA SFT and DPO for grounded answers and abstention"
+authors:
+  - family-names: Buga
+    given-names: Kiril
+repository-code: "https://github.com/kiril-buga/apertus-grounded-qa"
+license: Apache-2.0
+version: 0.1.0
+date-released: 2026-10-23
+keywords:
+  - post-training
+  - LoRA
+  - DPO
+  - grounded question answering
+  - hallucination
+  - Apertus

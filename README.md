@@ -1,14 +1,16 @@
 # Apertus Grounded QA
 
-LoRA post-training of [Apertus 8B Instruct](https://huggingface.co/swiss-ai/Apertus-8B-Instruct-2509) to answer
-questions **only from the given context**, and to **say so when the context doesn't contain the answer**.
-Training runs in two stages: supervised fine-tuning (SFT), then DPO on preference pairs ranked by a claim-level
-verifier. The evaluation checks every claim in an answer against its context, and the automatic metrics are
-validated against human labels before I trust them.
+[![tests](https://github.com/kiril-buga/apertus-grounded-qa/actions/workflows/tests.yml/badge.svg)](https://github.com/kiril-buga/apertus-grounded-qa/actions/workflows/tests.yml)
+
+LoRA post-training of the [Apertus](https://huggingface.co/swiss-ai) models to answer questions **only from the
+given context**, and to **say so when the context doesn't contain the answer**. Training runs in two stages:
+supervised fine-tuning (SFT), then DPO on preference pairs ranked by a claim-level verifier. The evaluation checks
+every claim in an answer against its context, and the automatic metric is checked against human labels.
 
 > **Status:** results so far are on **Apertus 1.5B** (Kaggle, one T4): SFT works and reproduces; four DPO
-> attempts did not beat it, for reasons the evaluation exposed. The 8B run is next. Every number below comes from
-> a saved notebook run; nothing is projected.
+> attempts did not beat it, for reasons the evaluation exposed. The pipeline and config for
+> [Apertus 8B Instruct](https://huggingface.co/swiss-ai/Apertus-8B-Instruct-2509) are ready but have not been run.
+> Every result below comes from a saved notebook run.
 
 ## Why this project
 
@@ -62,7 +64,9 @@ an LLM, reviewed and accepted by me; n=20 per model, so read the gap as large, n
 
 Re-scoring the same 40 answers with the fixed verifier (metric v2) gives 70% agreement, κ = 0.32. It accepts none of
 the five answers the human check rejected; its 12 errors are all correct answers it rejects, mostly for low coverage
-of a long reference ("On March 7."). So the headline numbers from attempt 3 on are conservative rather than gamed.
+of a long reference ("On March 7."). On these rows the fixed metric errs on the strict side, so the headline numbers
+from attempt 3 on are more likely too low than inflated. Five rejected answers are too few to show it can't be
+gamed, though.
 
 **What I take from it**
 
@@ -73,8 +77,9 @@ of a long reference ("On March 7."). So the headline numbers from attempt 3 on a
 - Falling back to the reference answer as "chosen" made the preference data mostly off-policy; once two thirds of the
   pairs came from it, DPO moved the model towards reference style rather than towards better grounding.
 - Closing both shortcuts (attempt 4: harmonic mean of precision and coverage, on-policy pairs only) stopped the
-  damage, but left DPO with too little signal. SFT samples rarely differ enough to make a pair, and the
-  verifier's own errors (κ 0.32) are large next to the differences DPO would have to learn.
+  damage, but left DPO with too little signal: for two thirds of the prompts the four samples scored too close to
+  form a pair. My guess is that the verifier's own noise (κ 0.32) is large next to the differences DPO would have to
+  learn; I haven't tested that.
 - What I'd change next: more preference prompts and more samples per prompt so more pairs clear the gap; a
   coverage check that credits short correct answers; then the same recipe on 8B.
 
@@ -93,7 +98,7 @@ flowchart LR
 ```
 
 **Data.** I use [`neural-bridge/rag-dataset-12000`](https://huggingface.co/datasets/neural-bridge/rag-dataset-12000)
-(context, question and long-form answer; check its card for license and provenance). Two choices matter:
+(context, question and long-form answer; Apache-2.0). Two choices matter:
 
 - *Split by document, not by question.* All questions about one context go to the same split, so test contexts are
   never seen in training.
@@ -104,7 +109,7 @@ flowchart LR
 SQuAD 2.0 (with native unanswerable questions) and your own JSONL file are also supported. See
 [Using your own testbed](#using-your-own-testbed).
 
-**Stage 1: SFT.** LoRA (r=16, α=32, all linear layers) in bf16, loss on the answer tokens only, 2 epochs, cosine
+**Stage 1: SFT.** LoRA (r=16, α=32, all linear layers) in bf16 (fp16 on a T4), loss on the answer tokens only, 2 epochs, cosine
 schedule, best checkpoint by validation loss.
 
 **Stage 2: DPO with a verifier as the reward.** The SFT model samples 4 answers per prompt on a held-out `pref`
@@ -144,8 +149,8 @@ is no longer used as "chosen" (`prefs.gold_fallback: false`). The SFT adapter is
   quick` whenever the metric changes.
 - *Metric validation:* `groundqa.annotate` exports a stratified sample, shuffled so you can't tell which model wrote
   each row, and reports Cohen's κ between human labels and the verifier. Optionally it also compares an LLM judge
-  (`groundqa.judge`, any OpenAI-compatible endpoint). The NLI threshold is tuned on these labels, not on the test
-  metrics.
+  (`groundqa.judge`, any OpenAI-compatible endpoint). If you tune the NLI threshold, tune it on these labels, not
+  on the test metrics. In the runs above it stayed at the default 0.5.
 
 ## Quickstart
 
@@ -192,7 +197,7 @@ Each step can also be run on its own (`python -m groundqa.<step> --help`). Any c
 
 **Compute.** Swiss AI's [fine-tuning recipes](https://github.com/swiss-ai/apertus-finetuning-recipes) report that
 LoRA on the 8B model fits a single 40 GB GPU. With the default sizes (6,000 SFT examples, 2,000 preference prompts,
-600 test questions), I expect the full pipeline to take well under a day on one A100 or H100. Measured on a Kaggle
+600 test questions), I estimate the full pipeline at well under a day on one A100 or H100 (not measured). Measured on a Kaggle
 T4 with the 1.5B dev config: SFT training about 46 min and DPO training 25–55 min (generation and verification come on top). `model.dtype: auto` uses bf16 on Ampere or newer GPUs and fp16 on
 T4/P100. For 8B on a 16–24 GB GPU, `model.load_in_4bit=true` covers SFT and evaluation, but not DPO, which merges
 adapters.
@@ -212,7 +217,7 @@ Then set `data.source: jsonl` and `data.path: path/to/file.jsonl`. `group` keeps
 
 - **Why not judge with an LLM?** Judges are cheap, but on technical answers they can be confidently wrong. A claim
   verifier is narrower and auditable, and either one should be checked against human labels before you trust it.
-  The repo measures both.
+  The repo supports both; so far only the verifier has been checked against labels.
 - **Why a separate `pref` split?** Sampling the SFT model on its own training prompts mostly reproduces memorised
   references, so the pairs carry little signal.
 - **Why merge SFT before DPO?** With the PEFT adapter disabled, TRL uses the frozen model as the DPO reference.
@@ -225,7 +230,7 @@ Then set `data.source: jsonl` and `data.path: path/to/file.jsonl`. `group` keeps
 - The data is web text with synthetic answers, not expert-written technical QA. Running the same pipeline on an
   expert testbed is the obvious next step.
 - Sentence-level claims are coarse. A sentence that mixes a supported and an unsupported fact can pass or fail as a
-  unit. The human-agreement numbers show how much this matters.
+  unit. More human labels would show how much this matters.
 - Context-swap negatives can occasionally contain the answer by coincidence. Human labels catch these, and the
   annotation CSV has a notes column for them.
 - The NLI model has a 512-token window. Chunking deals with long contexts but can miss evidence split across chunks.
@@ -257,3 +262,12 @@ labels/             saved human labels, re-scored when the metric changes
 scripts/            run_all.sh, smoke_test.py
 tests/              unit tests
 ```
+
+## License and citation
+
+Code under the [Apache License 2.0](LICENSE). If you redistribute this code or a modified version, keep the
+[`NOTICE`](NOTICE) file, which credits the original work. If you use it in research or a project write-up, please
+cite it; [`CITATION.cff`](CITATION.cff) has the details (GitHub shows them under "Cite this repository").
+
+The base models ([Apertus](https://huggingface.co/swiss-ai)) and the dataset
+([rag-dataset-12000](https://huggingface.co/datasets/neural-bridge/rag-dataset-12000)) have their own licenses.

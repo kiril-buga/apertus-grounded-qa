@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,6 +7,9 @@ name = "groundqa"
 version = "0.1.0"
 description = "LoRA SFT + DPO of Apertus for grounded answers and abstention, evaluated with claim-level verification"
 requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Kiril Buga" }]
 dependencies = [
     "torch>=2.4",
     "transformers>=4.56",   # Apertus support

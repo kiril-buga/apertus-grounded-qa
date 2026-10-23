@@ -1,0 +1,24 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install (CPU-only torch; library versions the results were produced with)
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install "transformers==5.19.*" "trl==1.15.*" "peft==0.21.*" -e ".[dev]"
+      - name: Unit tests
+        run: pytest -q
+      - name: Smoke test (whole pipeline on a tiny random model)
+        run: python scripts/smoke_test.py
